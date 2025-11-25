@@ -55,7 +55,7 @@ model Subject {
 }
 
 model Test {
-  id          String  @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   description String?
   userId      String
@@ -94,7 +94,7 @@ model Question {
 }
 
 model Attempt {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   userId   String
   testId   String
   answerId String?
@@ -103,7 +103,7 @@ model Attempt {
   startedAt   DateTime?
   endAt       DateTime?
   submittedAt DateTime?
-  cheatCount  Int      @default(0)
+  cheatCount  Int       @default(0)
 
   User User @relation(fields: [userId], references: [id])
   Test Test @relation(fields: [testId], references: [id])
