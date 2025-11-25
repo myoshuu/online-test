@@ -28,6 +28,54 @@ type StatItem = {
   description: string;
 };
 
+type AdminDashboardStats = {
+  totalUsers?: number;
+  totalTests?: number;
+  totalSubjects?: number;
+};
+
+type LecturerDashboardStats = {
+  myTests?: number;
+  totalAttempts?: number;
+  subjects?: number;
+};
+
+type StudentDashboardStats = {
+  availableTests?: number;
+  completedTests?: number;
+  mySubjects?: number;
+};
+
+const isAdminDashboardStats = (data: unknown): data is AdminDashboardStats => {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    ("totalUsers" in data || "totalTests" in data || "totalSubjects" in data)
+  );
+};
+
+const isLecturerDashboardStats = (
+  data: unknown
+): data is LecturerDashboardStats => {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    ("myTests" in data || "totalAttempts" in data || "subjects" in data)
+  );
+};
+
+const isStudentDashboardStats = (
+  data: unknown
+): data is StudentDashboardStats => {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    ("availableTests" in data ||
+      "completedTests" in data ||
+      "mySubjects" in data)
+  );
+};
+
 export default async function Dashboard() {
   const user = await authorize(["ADMIN", "LECTURER", "STUDENT"]);
   if (!user) {
@@ -47,7 +95,7 @@ export default async function Dashboard() {
 
   if (userData.role === "ADMIN") {
     const statsResult = await getDashboardStats();
-    if (statsResult.success && statsResult.data) {
+    if (statsResult.success && isAdminDashboardStats(statsResult.data)) {
       const stats = statsResult.data;
       userStats = [
         {
@@ -72,7 +120,7 @@ export default async function Dashboard() {
     }
   } else if (userData.role === "LECTURER") {
     const statsResult = await getLecturerStats();
-    if (statsResult.success && statsResult.data) {
+    if (statsResult.success && isLecturerDashboardStats(statsResult.data)) {
       const stats = statsResult.data;
       userStats = [
         {
@@ -97,7 +145,7 @@ export default async function Dashboard() {
     }
   } else if (userData.role === "STUDENT") {
     const statsResult = await getStudentStats();
-    if (statsResult.success && statsResult.data) {
+    if (statsResult.success && isStudentDashboardStats(statsResult.data)) {
       const stats = statsResult.data;
       userStats = [
         {
@@ -136,62 +184,64 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {userStats.map((stat: StatItem) => {
-            const Icon = stat.icon;
-            return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {userStats.map((stat: StatItem) => {
+          const Icon = stat.icon;
+          return (
             <Card key={stat.title} className="border border-border bg-card">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {stat.title}
-                  </CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
                 <div className="text-2xl font-bold">
-                  {typeof stat.value === "number" ? stat.value.toLocaleString() : stat.value}
+                  {typeof stat.value === "number"
+                    ? stat.value.toLocaleString()
+                    : stat.value}
                 </div>
-                  <p className="text-xs text-muted-foreground">
-                    {stat.description}
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                <p className="text-xs text-muted-foreground">
+                  {stat.description}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
       <Card className="border border-border bg-card">
-          <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>Your account details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Name:</span>
-                <span className="text-sm font-medium">{userData.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">NIM:</span>
-                <span className="text-sm font-medium">{userData.nim}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Role:</span>
-                <span className="text-sm font-medium">{userData.role}</span>
-              </div>
-              {userData.lastLogin && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Last Login:
-                  </span>
-                  <span className="text-sm font-medium">
-                    {new Date(userData.lastLogin).toLocaleString()}
-                  </span>
-                </div>
-              )}
+        <CardHeader>
+          <CardTitle>Account Information</CardTitle>
+          <CardDescription>Your account details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Name:</span>
+              <span className="text-sm font-medium">{userData.name}</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">NIM:</span>
+              <span className="text-sm font-medium">{userData.nim}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Role:</span>
+              <span className="text-sm font-medium">{userData.role}</span>
+            </div>
+            {userData.lastLogin && (
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Last Login:
+                </span>
+                <span className="text-sm font-medium">
+                  {new Date(userData.lastLogin).toLocaleString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -9,13 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import {
-  GraduationCap,
-  BookOpen,
-  Clock,
-  Plus,
-  ArrowRight,
-} from "lucide-react";
+import { GraduationCap, BookOpen, Clock, Plus, ArrowRight } from "lucide-react";
 
 export default async function LecturerDashboard() {
   const user = await authorize(["LECTURER"]);
@@ -28,7 +22,9 @@ export default async function LecturerDashboard() {
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Welcome Section */}
       <div className="border border-border rounded-xl p-4 sm:p-6 bg-card">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome, Lecturer!</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+          Welcome, Lecturer!
+        </h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           Manage your tests and monitor student progress.
         </p>
@@ -39,7 +35,7 @@ export default async function LecturerDashboard() {
         <Card className="border border-border bg-card">
           <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+              <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
               <CardTitle className="text-base sm:text-lg">My Tests</CardTitle>
             </div>
             <CardDescription className="text-xs sm:text-sm">
@@ -53,21 +49,19 @@ export default async function LecturerDashboard() {
                 className="w-full justify-between cursor-pointer text-xs sm:text-sm"
               >
                 <span className="flex items-center gap-2 truncate">
-                  <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
                   <span className="truncate">View Tests</span>
                 </span>
-                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
               </Button>
             </Link>
             <Link href="/dashboard/lecturer/tests/create">
-              <Button
-                className="w-full justify-between cursor-pointer text-xs sm:text-sm"
-              >
+              <Button className="w-full justify-between cursor-pointer text-xs sm:text-sm">
                 <span className="flex items-center gap-2 truncate">
-                  <Plus className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <Plus className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
                   <span className="truncate">Create New Test</span>
                 </span>
-                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
               </Button>
             </Link>
           </CardContent>
@@ -76,8 +70,10 @@ export default async function LecturerDashboard() {
         <Card className="border border-border bg-card">
           <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
-              <CardTitle className="text-base sm:text-lg">Recent Activity</CardTitle>
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+              <CardTitle className="text-base sm:text-lg">
+                Recent Activity
+              </CardTitle>
             </div>
             <CardDescription className="text-xs sm:text-sm">
               Your recent test activities
@@ -95,7 +91,7 @@ export default async function LecturerDashboard() {
         <Card className="border border-border bg-card">
           <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
               <CardTitle className="text-base sm:text-lg">Statistics</CardTitle>
             </div>
             <CardDescription className="text-xs sm:text-sm">
@@ -105,11 +101,15 @@ export default async function LecturerDashboard() {
           <CardContent className="p-4 sm:p-6 pt-0">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm text-muted-foreground">Total Tests</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  Total Tests
+                </span>
                 <span className="text-lg sm:text-xl font-bold">0</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs sm:text-sm text-muted-foreground">Active Tests</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  Active Tests
+                </span>
                 <span className="text-lg sm:text-xl font-bold">0</span>
               </div>
             </div>
@@ -119,4 +119,3 @@ export default async function LecturerDashboard() {
     </div>
   );
 }
-

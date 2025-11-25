@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { getSubjectWithAssignments, assignUserToSubject, bulkAssignUsersToSubject, unassignUserFromSubject } from "@/actions/Subject";
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
+import {
+  getSubjectWithAssignments,
+  assignUserToSubject,
+  bulkAssignUsersToSubject,
+  unassignUserFromSubject,
+} from "@/actions/Subject";
 import { getUsers } from "@/actions/Auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +47,6 @@ import {
   UserCheck,
   GraduationCap,
   Loader2,
-  X,
   Plus,
   UserX,
   Users,
@@ -72,9 +76,35 @@ type SubjectData = {
   updatedAt: string;
 };
 
+type MessageResponse = { message: string };
+type BulkAssignResponseData =
+  | MessageResponse
+  | {
+      assigned: number;
+      skipped: number;
+    };
+
+const extractMessage = (
+  data: MessageResponse | undefined,
+  fallback: string
+) => {
+  if (data && "message" in data) {
+    return data.message;
+  }
+  return fallback;
+};
+
+const extractBulkAssignCounts = (
+  data: BulkAssignResponseData | undefined
+): { assigned?: number; skipped?: number } => {
+  if (data && "assigned" in data) {
+    return { assigned: data.assigned, skipped: data.skipped };
+  }
+  return {};
+};
+
 export default function SubjectViewPage() {
   const params = useParams();
-  const router = useRouter();
   const subjectId = params.id as string;
   const [loading, setLoading] = useState(true);
   const [subject, setSubject] = useState<SubjectData | null>(null);
@@ -98,20 +128,21 @@ export default function SubjectViewPage() {
     userRole: "LECTURER" | "STUDENT";
   }>({ open: false, userId: null, userName: "", userRole: "STUDENT" });
 
-  useEffect(() => {
-    loadData();
-  }, [subjectId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [subjectResult, lecturersResult, studentsResult] = await Promise.all([
-        getSubjectWithAssignments(subjectId),
-        getUsers({ role: "LECTURER", isActive: true, limit: 1000 }),
-        getUsers({ role: "STUDENT", isActive: true, limit: 1000 }),
-      ]);
+      const [subjectResult, lecturersResult, studentsResult] =
+        await Promise.all([
+          getSubjectWithAssignments(subjectId),
+          getUsers({ role: "LECTURER", isActive: true, limit: 1000 }),
+          getUsers({ role: "STUDENT", isActive: true, limit: 1000 }),
+        ]);
 
-      if (subjectResult.success && subjectResult.data && "subject" in subjectResult.data) {
+      if (
+        subjectResult.success &&
+        subjectResult.data &&
+        "subject" in subjectResult.data
+      ) {
         const data = subjectResult.data;
         setSubject({
           id: data.subject.id,
@@ -156,11 +187,19 @@ export default function SubjectViewPage() {
         );
       }
 
-      if (lecturersResult.success && lecturersResult.data && "users" in lecturersResult.data) {
+      if (
+        lecturersResult.success &&
+        lecturersResult.data &&
+        "users" in lecturersResult.data
+      ) {
         setAllLecturers(lecturersResult.data.users as User[]);
       }
 
-      if (studentsResult.success && studentsResult.data && "users" in studentsResult.data) {
+      if (
+        studentsResult.success &&
+        studentsResult.data &&
+        "users" in studentsResult.data
+      ) {
         setAllStudents(studentsResult.data.users as User[]);
       }
     } catch {
@@ -170,23 +209,40 @@ export default function SubjectViewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [subjectId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleAssignLecturer = async () => {
     if (bulkModeLecturer) {
       if (selectedLecturerIds.length === 0) return;
       setAssigningLecturer(true);
       try {
-        const result = await bulkAssignUsersToSubject(selectedLecturerIds, subjectId);
+        const result = await bulkAssignUsersToSubject(
+          selectedLecturerIds,
+          subjectId
+        );
         if (result.success) {
+          const { assigned, skipped } = extractBulkAssignCounts(
+            result.data as BulkAssignResponseData | undefined
+          );
           toast.success("Lecturers Assigned", {
-            description: `${result.data?.assigned || selectedLecturerIds.length} lecturer(s) assigned successfully.${result.data?.skipped ? ` ${result.data.skipped} already assigned.` : ""}`,
+            description: `${
+              assigned ?? selectedLecturerIds.length
+            } lecturer(s) assigned successfully.${
+              skipped ? ` ${skipped} already assigned.` : ""
+            }`,
           });
           setSelectedLecturerIds([]);
           loadData();
         } else {
           toast.error("Assignment Failed", {
-            description: result.data?.message || "Failed to assign lecturers",
+            description: extractMessage(
+              result.data as MessageResponse | undefined,
+              "Failed to assign lecturers"
+            ),
           });
         }
       } catch {
@@ -203,13 +259,17 @@ export default function SubjectViewPage() {
         const result = await assignUserToSubject(selectedLecturerId, subjectId);
         if (result.success) {
           toast.success("Lecturer Assigned", {
-            description: "Lecturer has been assigned to this subject successfully.",
+            description:
+              "Lecturer has been assigned to this subject successfully.",
           });
           setSelectedLecturerId("");
           loadData();
         } else {
           toast.error("Assignment Failed", {
-            description: result.data?.message || "Failed to assign lecturer",
+            description: extractMessage(
+              result.data as MessageResponse | undefined,
+              "Failed to assign lecturer"
+            ),
           });
         }
       } catch {
@@ -227,16 +287,29 @@ export default function SubjectViewPage() {
       if (selectedStudentIds.length === 0) return;
       setAssigningStudent(true);
       try {
-        const result = await bulkAssignUsersToSubject(selectedStudentIds, subjectId);
+        const result = await bulkAssignUsersToSubject(
+          selectedStudentIds,
+          subjectId
+        );
         if (result.success) {
+          const { assigned, skipped } = extractBulkAssignCounts(
+            result.data as BulkAssignResponseData | undefined
+          );
           toast.success("Students Assigned", {
-            description: `${result.data?.assigned || selectedStudentIds.length} student(s) assigned successfully.${result.data?.skipped ? ` ${result.data.skipped} already assigned.` : ""}`,
+            description: `${
+              assigned ?? selectedStudentIds.length
+            } student(s) assigned successfully.${
+              skipped ? ` ${skipped} already assigned.` : ""
+            }`,
           });
           setSelectedStudentIds([]);
           loadData();
         } else {
           toast.error("Assignment Failed", {
-            description: result.data?.message || "Failed to assign students",
+            description: extractMessage(
+              result.data as MessageResponse | undefined,
+              "Failed to assign students"
+            ),
           });
         }
       } catch {
@@ -253,13 +326,17 @@ export default function SubjectViewPage() {
         const result = await assignUserToSubject(selectedStudentId, subjectId);
         if (result.success) {
           toast.success("Student Assigned", {
-            description: "Student has been assigned to this subject successfully.",
+            description:
+              "Student has been assigned to this subject successfully.",
           });
           setSelectedStudentId("");
           loadData();
         } else {
           toast.error("Assignment Failed", {
-            description: result.data?.message || "Failed to assign student",
+            description: extractMessage(
+              result.data as MessageResponse | undefined,
+              "Failed to assign student"
+            ),
           });
         }
       } catch {
@@ -304,7 +381,11 @@ export default function SubjectViewPage() {
     }
   };
 
-  const handleUnassignClick = (userId: string, userName: string, userRole: "LECTURER" | "STUDENT") => {
+  const handleUnassignClick = (
+    userId: string,
+    userName: string,
+    userRole: "LECTURER" | "STUDENT"
+  ) => {
     setConfirmUnassign({
       open: true,
       userId,
@@ -317,10 +398,18 @@ export default function SubjectViewPage() {
     if (!confirmUnassign.userId) return;
 
     setUnassigningId(confirmUnassign.userId);
-    setConfirmUnassign({ open: false, userId: null, userName: "", userRole: "STUDENT" });
+    setConfirmUnassign({
+      open: false,
+      userId: null,
+      userName: "",
+      userRole: "STUDENT",
+    });
 
     try {
-      const result = await unassignUserFromSubject(confirmUnassign.userId, subjectId);
+      const result = await unassignUserFromSubject(
+        confirmUnassign.userId,
+        subjectId
+      );
       if (result.success) {
         toast.success("User Unassigned", {
           description: `"${confirmUnassign.userName}" has been unassigned from this subject.`,
@@ -328,7 +417,10 @@ export default function SubjectViewPage() {
         loadData();
       } else {
         toast.error("Unassignment Failed", {
-          description: result.data?.message || "Failed to unassign user",
+          description: extractMessage(
+            result.data as MessageResponse | undefined,
+            "Failed to unassign user"
+          ),
         });
       }
     } catch {
@@ -365,7 +457,7 @@ export default function SubjectViewPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Subject Not Found</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            The subject you're looking for doesn't exist.
+            The subject you&apos;re looking for doesn&apos;t exist.
           </p>
         </div>
         <Link href="/dashboard/admin/subjects">
@@ -419,13 +511,16 @@ export default function SubjectViewPage() {
         </CardHeader>
         <CardContent>
           {subject.description && (
-            <p className="text-sm text-muted-foreground mb-4">{subject.description}</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {subject.description}
+            </p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Created: </span>
               <span>
-                {subject.createdAt && !isNaN(new Date(subject.createdAt).getTime())
+                {subject.createdAt &&
+                !isNaN(new Date(subject.createdAt).getTime())
                   ? formatDateTime(new Date(subject.createdAt))
                   : "N/A"}
               </span>
@@ -433,7 +528,8 @@ export default function SubjectViewPage() {
             <div>
               <span className="text-muted-foreground">Updated: </span>
               <span>
-                {subject.updatedAt && !isNaN(new Date(subject.updatedAt).getTime())
+                {subject.updatedAt &&
+                !isNaN(new Date(subject.updatedAt).getTime())
                   ? formatDateTime(new Date(subject.updatedAt))
                   : "N/A"}
               </span>
@@ -455,12 +551,16 @@ export default function SubjectViewPage() {
                 {lecturers.length} assigned
               </span>
             </div>
-            <CardDescription>Lecturers assigned to this subject</CardDescription>
+            <CardDescription>
+              Lecturers assigned to this subject
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Mode Toggle */}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Assignment Mode:</span>
+              <span className="text-sm text-muted-foreground">
+                Assignment Mode:
+              </span>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -495,7 +595,9 @@ export default function SubjectViewPage() {
                 <Select
                   value={selectedLecturerId}
                   onValueChange={setSelectedLecturerId}
-                  disabled={assigningLecturer || availableLecturers.length === 0}
+                  disabled={
+                    assigningLecturer || availableLecturers.length === 0
+                  }
                 >
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Select lecturer to assign" />
@@ -510,7 +612,11 @@ export default function SubjectViewPage() {
                 </Select>
                 <Button
                   onClick={handleAssignLecturer}
-                  disabled={!selectedLecturerId || assigningLecturer || availableLecturers.length === 0}
+                  disabled={
+                    !selectedLecturerId ||
+                    assigningLecturer ||
+                    availableLecturers.length === 0
+                  }
                   size="icon"
                   className="cursor-pointer"
                 >
@@ -529,7 +635,8 @@ export default function SubjectViewPage() {
                       <Checkbox
                         checked={
                           availableLecturers.length > 0 &&
-                          selectedLecturerIds.length === availableLecturers.length
+                          selectedLecturerIds.length ===
+                            availableLecturers.length
                         }
                         onCheckedChange={toggleSelectAllLecturers}
                       />
@@ -555,10 +662,14 @@ export default function SubjectViewPage() {
                       >
                         <Checkbox
                           checked={selectedLecturerIds.includes(lecturer.id)}
-                          onCheckedChange={() => toggleLecturerSelection(lecturer.id)}
+                          onCheckedChange={() =>
+                            toggleLecturerSelection(lecturer.id)
+                          }
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{lecturer.name}</p>
+                          <p className="text-sm font-medium truncate">
+                            {lecturer.name}
+                          </p>
                           <p className="text-xs text-muted-foreground truncate">
                             {lecturer.nim}
                           </p>
@@ -569,7 +680,9 @@ export default function SubjectViewPage() {
                 </div>
                 <Button
                   onClick={handleAssignLecturer}
-                  disabled={selectedLecturerIds.length === 0 || assigningLecturer}
+                  disabled={
+                    selectedLecturerIds.length === 0 || assigningLecturer
+                  }
                   className="w-full cursor-pointer"
                 >
                   {assigningLecturer ? (
@@ -580,7 +693,11 @@ export default function SubjectViewPage() {
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Assign {selectedLecturerIds.length > 0 ? `${selectedLecturerIds.length} ` : ""}Lecturer{selectedLecturerIds.length !== 1 ? "s" : ""}
+                      Assign{" "}
+                      {selectedLecturerIds.length > 0
+                        ? `${selectedLecturerIds.length} `
+                        : ""}
+                      Lecturer{selectedLecturerIds.length !== 1 ? "s" : ""}
                     </>
                   )}
                 </Button>
@@ -600,13 +717,17 @@ export default function SubjectViewPage() {
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{lecturer.name}</p>
+                      <p className="text-sm font-semibold truncate">
+                        {lecturer.name}
+                      </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {lecturer.nim}
                       </p>
                       {lecturer.assignedAt && lecturer.assignedBy && (
                         <p className="text-xs text-muted-foreground/70 mt-1 truncate">
-                          Assigned {formatDateTime(new Date(lecturer.assignedAt))} by {lecturer.assignedBy}
+                          Assigned{" "}
+                          {formatDateTime(new Date(lecturer.assignedAt))} by{" "}
+                          {lecturer.assignedBy}
                         </p>
                       )}
                     </div>
@@ -614,7 +735,11 @@ export default function SubjectViewPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() =>
-                        handleUnassignClick(lecturer.id, lecturer.name, "LECTURER")
+                        handleUnassignClick(
+                          lecturer.id,
+                          lecturer.name,
+                          "LECTURER"
+                        )
                       }
                       disabled={unassigningId === lecturer.id}
                       className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -649,7 +774,9 @@ export default function SubjectViewPage() {
           <CardContent className="space-y-4">
             {/* Mode Toggle */}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Assignment Mode:</span>
+              <span className="text-sm text-muted-foreground">
+                Assignment Mode:
+              </span>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -699,7 +826,11 @@ export default function SubjectViewPage() {
                 </Select>
                 <Button
                   onClick={handleAssignStudent}
-                  disabled={!selectedStudentId || assigningStudent || availableStudents.length === 0}
+                  disabled={
+                    !selectedStudentId ||
+                    assigningStudent ||
+                    availableStudents.length === 0
+                  }
                   size="icon"
                   className="cursor-pointer"
                 >
@@ -744,10 +875,14 @@ export default function SubjectViewPage() {
                       >
                         <Checkbox
                           checked={selectedStudentIds.includes(student.id)}
-                          onCheckedChange={() => toggleStudentSelection(student.id)}
+                          onCheckedChange={() =>
+                            toggleStudentSelection(student.id)
+                          }
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{student.name}</p>
+                          <p className="text-sm font-medium truncate">
+                            {student.name}
+                          </p>
                           <p className="text-xs text-muted-foreground truncate">
                             {student.nim}
                           </p>
@@ -769,7 +904,11 @@ export default function SubjectViewPage() {
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Assign {selectedStudentIds.length > 0 ? `${selectedStudentIds.length} ` : ""}Student{selectedStudentIds.length !== 1 ? "s" : ""}
+                      Assign{" "}
+                      {selectedStudentIds.length > 0
+                        ? `${selectedStudentIds.length} `
+                        : ""}
+                      Student{selectedStudentIds.length !== 1 ? "s" : ""}
                     </>
                   )}
                 </Button>
@@ -789,13 +928,17 @@ export default function SubjectViewPage() {
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{student.name}</p>
+                      <p className="text-sm font-semibold truncate">
+                        {student.name}
+                      </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {student.nim}
                       </p>
                       {student.assignedAt && student.assignedBy && (
                         <p className="text-xs text-muted-foreground/70 mt-1 truncate">
-                          Assigned {formatDateTime(new Date(student.assignedAt))} by {student.assignedBy}
+                          Assigned{" "}
+                          {formatDateTime(new Date(student.assignedAt))} by{" "}
+                          {student.assignedBy}
                         </p>
                       )}
                     </div>
@@ -827,15 +970,23 @@ export default function SubjectViewPage() {
         open={confirmUnassign.open}
         onOpenChange={(open) =>
           !open &&
-          setConfirmUnassign({ open: false, userId: null, userName: "", userRole: "STUDENT" })
+          setConfirmUnassign({
+            open: false,
+            userId: null,
+            userName: "",
+            userRole: "STUDENT",
+          })
         }
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unassign {confirmUnassign.userRole}</AlertDialogTitle>
+            <AlertDialogTitle>
+              Unassign {confirmUnassign.userRole}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to unassign "{confirmUnassign.userName}" from this
-              subject? This action cannot be undone.
+              Are you sure you want to unassign &quot;
+              {confirmUnassign.userName}
+              &quot; from this subject? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -852,4 +1003,3 @@ export default function SubjectViewPage() {
     </div>
   );
 }
-

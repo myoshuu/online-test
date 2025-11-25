@@ -3,17 +3,6 @@ import { authorize } from "@/helpers/Authenticate";
 import { prisma } from "@/helpers/Prisma";
 import { SubjectsPageClient } from "./SubjectsPageClient";
 
-type SubjectWithMeta = {
-  id: string;
-  name: string;
-  description: string | null;
-  code: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string | null;
-  updatedBy: string | null;
-};
-
 const SubjectsPage = async () => {
   const user = await authorize(["ADMIN"]);
 
@@ -33,10 +22,7 @@ const SubjectsPage = async () => {
       createdBy: true,
       updatedBy: true,
     },
-    orderBy: [
-      { code: "asc" },
-      { name: "asc" },
-    ],
+    orderBy: [{ code: "asc" }, { name: "asc" }],
   });
 
   // Fetch creator and updater names
@@ -100,4 +86,3 @@ const SubjectsPage = async () => {
 };
 
 export default SubjectsPage;
-

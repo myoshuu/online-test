@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,12 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -72,8 +67,7 @@ const getDurationLabel = (start: string | null, end: string | null) => {
   }
 
   let diff = endDate.getTime() - startDate.getTime();
-  const sameCalendarDay =
-    startDate.toDateString() === endDate.toDateString();
+  const sameCalendarDay = startDate.toDateString() === endDate.toDateString();
   if (diff <= 0 && sameCalendarDay) {
     diff += 24 * 60 * 60 * 1000;
   }
@@ -202,21 +196,24 @@ export function StudentTestsPageClient({
   const handleStartTest = (test: StudentSubject["tests"][number]) => {
     if (test.attemptSubmitted || test.cheatCount > 0) {
       toast.error("Already attempted", {
-        description: test.cheatCount > 0
-          ? "You already did the test indicate cheating."
-          : "You have already completed this test.",
+        description:
+          test.cheatCount > 0
+            ? "You already did the test indicate cheating."
+            : "You have already completed this test.",
       });
       return;
     }
     if (!isTestStarted(test)) {
       toast.error("Test not started", {
-        description: "The test has not started yet. Please wait for the scheduled start time.",
+        description:
+          "The test has not started yet. Please wait for the scheduled start time.",
       });
       return;
     }
     if (isTestEnded(test)) {
       toast.error("Test ended", {
-        description: "The test window has ended. You can no longer start this test.",
+        description:
+          "The test window has ended. You can no longer start this test.",
       });
       return;
     }
@@ -332,7 +329,8 @@ export function StudentTestsPageClient({
                   <div>
                     <CardTitle className="text-base">No tests yet</CardTitle>
                     <CardDescription>
-                      When your lecturer publishes a test for this subject, it will show up here.
+                      When your lecturer publishes a test for this subject, it
+                      will show up here.
                     </CardDescription>
                   </div>
                 </CardHeader>
@@ -350,11 +348,19 @@ export function StudentTestsPageClient({
                   const testStarted = isTestStarted(test);
                   const testEnded = isTestEnded(test);
                   const hasCheating = test.cheatCount > 0;
-                  const canStart = testStarted && !testEnded && !test.attemptSubmitted && !hasCheating;
-                  
+                  const canStart =
+                    testStarted &&
+                    !testEnded &&
+                    !test.attemptSubmitted &&
+                    !hasCheating;
+
                   let statusText = "Start Test";
-                  let statusVariant: "default" | "secondary" | "destructive" | "outline" = "default";
-                  
+                  let statusVariant:
+                    | "default"
+                    | "secondary"
+                    | "destructive"
+                    | "outline" = "default";
+
                   if (test.attemptSubmitted || hasCheating) {
                     statusText = hasCheating
                       ? "Cheating Detected"
@@ -367,7 +373,7 @@ export function StudentTestsPageClient({
                     statusText = "Test Ended";
                     statusVariant = "secondary";
                   }
-                  
+
                   return (
                     <Card
                       key={test.id}
@@ -385,7 +391,10 @@ export function StudentTestsPageClient({
                                 {test.title}
                               </CardTitle>
                               {!canStart && (
-                                <Badge variant={statusVariant} className="text-xs">
+                                <Badge
+                                  variant={statusVariant}
+                                  className="text-xs"
+                                >
                                   {statusText}
                                 </Badge>
                               )}
@@ -533,4 +542,3 @@ export function StudentTestsPageClient({
     </div>
   );
 }
-

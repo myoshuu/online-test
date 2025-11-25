@@ -459,6 +459,7 @@ export const getStudentTestsWithAccess = async () => {
       title: test.title,
       subjectName: test.Subject.name,
       subjectCode: test.Subject.code,
+      hasAccessCode: true,
     }));
 
     return res(true, { tests: formatted });

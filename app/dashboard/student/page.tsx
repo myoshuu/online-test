@@ -39,7 +39,7 @@ export default async function StudentDashboard() {
         <Card className="border border-border bg-card">
           <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
               <CardTitle className="text-base sm:text-lg">Available Tests</CardTitle>
             </div>
             <CardDescription className="text-xs sm:text-sm">
@@ -52,10 +52,10 @@ export default async function StudentDashboard() {
                 className="w-full justify-between cursor-pointer text-xs sm:text-sm"
               >
                 <span className="flex items-center gap-2 truncate">
-                  <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
                   <span className="truncate">View Tests</span>
                 </span>
-                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
               </Button>
             </Link>
           </CardContent>
@@ -64,7 +64,7 @@ export default async function StudentDashboard() {
         <Card className="border border-border bg-card">
           <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
               <CardTitle className="text-base sm:text-lg">My Results</CardTitle>
             </div>
             <CardDescription className="text-xs sm:text-sm">
@@ -83,7 +83,7 @@ export default async function StudentDashboard() {
         <Card className="border border-border bg-card">
           <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
               <CardTitle className="text-base sm:text-lg">Statistics</CardTitle>
             </div>
             <CardDescription className="text-xs sm:text-sm">

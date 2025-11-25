@@ -59,7 +59,10 @@ type SubjectResponseData =
       };
     };
 
-const extractMessage = (data: SubjectResponseData | undefined, fallback: string) => {
+const extractMessage = (
+  data: SubjectResponseData | undefined,
+  fallback: string
+) => {
   if (data && "message" in data) {
     return data.message;
   }
@@ -106,7 +109,10 @@ export default function EditSubjectPage() {
             description: subject.description || "",
           });
         } else {
-          const message = extractMessage(result.data as SubjectResponseData | undefined, "Failed to load subject");
+          const message = extractMessage(
+            result.data as SubjectResponseData | undefined,
+            "Failed to load subject"
+          );
           setError(message);
           showModal({
             title: "Error",
@@ -149,7 +155,10 @@ export default function EditSubjectPage() {
           onConfirm: () => router.push("/dashboard/admin/subjects"),
         });
       } else {
-        const message = extractMessage(result.data as SubjectResponseData | undefined, "Failed to update subject");
+        const message = extractMessage(
+          result.data as SubjectResponseData | undefined,
+          "Failed to update subject"
+        );
         setError(message);
         showModal({
           title: "Update Failed",
@@ -231,9 +240,7 @@ export default function EditSubjectPage() {
       <Card className="border border-border bg-card">
         <CardHeader>
           <CardTitle>Subject Information</CardTitle>
-          <CardDescription>
-            Update the subject details below
-          </CardDescription>
+          <CardDescription>Update the subject details below</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -312,7 +319,11 @@ export default function EditSubjectPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={saving} className="cursor-pointer">
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  className="cursor-pointer"
+                >
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -333,4 +344,3 @@ export default function EditSubjectPage() {
     </div>
   );
 }
-

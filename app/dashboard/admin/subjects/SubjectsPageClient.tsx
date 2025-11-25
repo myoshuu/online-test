@@ -29,16 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  BookOpen,
-  Search,
-  Eye,
-  Edit,
-  Trash2,
-  RefreshCw,
-  Plus,
-  Users,
-} from "lucide-react";
+import { BookOpen, Search, Eye, Edit, Trash2, Plus, Users } from "lucide-react";
 import { formatDateTime } from "@/lib/dateUtils";
 import { deleteSubject } from "@/actions/Subject";
 import { toast } from "sonner";
@@ -317,15 +308,16 @@ export function SubjectsPageClient({
       <AlertDialog
         open={confirmDelete.open}
         onOpenChange={(open) =>
-          !open && setConfirmDelete({ open: false, subjectId: null, subjectName: "" })
+          !open &&
+          setConfirmDelete({ open: false, subjectId: null, subjectName: "" })
         }
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Subject</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{confirmDelete.subjectName}"?
-              This action cannot be undone.
+              Are you sure you want to delete &quot;{confirmDelete.subjectName}
+              &quot;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -388,4 +380,3 @@ export function SubjectsPageClient({
     </div>
   );
 }
-

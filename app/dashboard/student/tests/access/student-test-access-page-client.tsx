@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-type StudentTestSummary = {
+export type StudentTestSummary = {
   testId: string;
   title: string;
   subjectName: string;
