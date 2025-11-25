@@ -171,11 +171,10 @@ const LoginPageClient = () => {
         </CardContent>
       </Card>
       <footer className="mt-8 text-center text-sm text-muted-foreground">
-        Made with ♥️ by Aprovoid – Joevano
+        Made with ♥️ by Aprovoid
       </footer>
     </div>
   );
 };
 
 export default LoginPageClient;
-
