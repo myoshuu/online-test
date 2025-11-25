@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: online-test
+    ports:
+      - "3000:3000" # NextJS App
+      - "5555:5555" # Prisma Studio
+    volumes:
+      - .:/app:cached
+      - /app/node_modules
+      - /app/.next
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres:5432/online_test
+    command: sh -c "bunx prisma migrate deploy && bun run dev"
+    networks: 
+      - shared-net
+
+networks:
+  shared-net:
+    external: true

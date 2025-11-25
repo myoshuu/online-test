@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  LECTURER
+  STUDENT
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  nim       String
+  password  String
+  avatarUrl String?
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  role      Role      @default(STUDENT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  tests       Test[]
+  attempts    Attempt[]
+  enrollments UserSubject[]
+}
+
+model Subject {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  code        String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  tests       Test[]
+  enrollments UserSubject[]
+}
+
+model Test {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  userId      String
+  subjectId   String
+  startDate   DateTime?
+  endDate     DateTime?
+  accessCode  String?   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  User    User    @relation(fields: [userId], references: [id])
+  Subject Subject @relation(fields: [subjectId], references: [id])
+
+  questions Question[]
+  attempts  Attempt[]
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  question  String
+  isCorrect Boolean?
+  order     Int?
+  testId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  Test Test @relation(fields: [testId], references: [id])
+
+  answers Answer[]
+}
+
+model Attempt {
+  id       String @id @default(uuid())
+  userId   String
+  testId   String
+  answerId String?
+
+  score       Float?
+  startedAt   DateTime?
+  endAt       DateTime?
+  submittedAt DateTime?
+  cheatCount  Int      @default(0)
+
+  User User @relation(fields: [userId], references: [id])
+  Test Test @relation(fields: [testId], references: [id])
+
+  answers Answer[]
+
+  @@unique([userId, testId])
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  boolAnswer Boolean?
+  isCorrect  Boolean?
+  attemptId  String
+  questionId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  Attempt  Attempt  @relation(fields: [attemptId], references: [id])
+  Question Question @relation(fields: [questionId], references: [id])
+}
+
+model UserSubject {
+  id        String @id @default(uuid())
+  userId    String
+  subjectId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  updatedBy String?
+
+  User    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subjectId])
+  @@index([userId])
+  @@index([subjectId])
+}
