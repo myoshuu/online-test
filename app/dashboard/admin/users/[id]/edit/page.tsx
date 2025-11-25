@@ -58,6 +58,26 @@ const updateUserSchema = z.object({
 });
 
 type UpdateUserInput = z.infer<typeof updateUserSchema>;
+type UserResponseData =
+  | { message: string }
+  | {
+      user: {
+        id: string;
+        name: string;
+        nim: string;
+        role: "ADMIN" | "LECTURER" | "STUDENT";
+      };
+    };
+
+const extractMessage = (
+  data: UserResponseData | undefined,
+  fallback: string
+) => {
+  if (data && "message" in data) {
+    return data.message;
+  }
+  return fallback;
+};
 
 const EditUserPage = () => {
   const params = useParams();
@@ -101,17 +121,14 @@ const EditUserPage = () => {
             password: "",
           });
         } else {
-          setError(
-            result.data && "message" in result.data
-              ? result.data.message
-              : null || "Failed to load user"
+          const message = extractMessage(
+            result.data as UserResponseData | undefined,
+            "Failed to load user"
           );
+          setError(message);
           showModal({
             title: "Error",
-            description:
-              result.data && "message" in result.data
-                ? result.data.message
-                : "Failed to load user data. Please try again.",
+            description: message,
             variant: "error",
           });
         }
@@ -162,17 +179,14 @@ const EditUserPage = () => {
           onConfirm: () => router.push("/dashboard/admin/users"),
         });
       } else {
-        setError(
-          result.data && "message" in result.data
-            ? result.data.message
-            : "Failed to update user"
+        const message = extractMessage(
+          result.data as UserResponseData | undefined,
+          "Failed to update user"
         );
+        setError(message);
         showModal({
           title: "Update Failed",
-          description:
-            result.data && "message" in result.data
-              ? result.data.message
-              : "Failed to update user",
+          description: message,
           variant: "error",
         });
       }
