@@ -1,5 +1,10 @@
 import bcrypt from "bcryptjs";
-import { prisma } from "../helpers/Prisma";
+import { PrismaClient } from "@/app/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 const main = async () => {
   console.log("🌱 Starting seed...");
