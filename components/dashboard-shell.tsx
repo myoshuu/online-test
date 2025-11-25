@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -30,7 +30,16 @@ type DashboardShellProps = {
   };
 };
 
-const navConfig = [
+type UserRole = "ADMIN" | "LECTURER" | "STUDENT";
+
+type NavItem = {
+  label: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  roles: UserRole[];
+};
+
+const navConfig: NavItem[] = [
   {
     label: "Overview",
     href: "/dashboard",
@@ -79,7 +88,7 @@ const navConfig = [
     icon: UserCircle,
     roles: ["ADMIN", "LECTURER", "STUDENT"],
   },
-] as const;
+];
 
 export function DashboardShell({ children, currentUser }: DashboardShellProps) {
   const router = useRouter();
