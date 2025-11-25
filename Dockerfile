@@ -81,11 +81,5 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/app/generated/prisma ./app/generated/prisma
 
-# Copy entrypoint 
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
-
-# Make entrypoint executable
-RUN chmod +x ./docker-entrypoint.sh
-
 EXPOSE 3000
 CMD ["bun", "server.js"]
