@@ -50,6 +50,8 @@ RUN apt-get update -y && apt-get install -y openssl
 # ENV PRISMA_CLI_QUERY_ENGINE_TYPE=binary
 # ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
