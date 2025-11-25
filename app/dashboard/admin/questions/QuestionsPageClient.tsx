@@ -200,6 +200,7 @@ export function QuestionsPageClient({
   // Initialize from URL params to prevent blinking
   const initialSubjectId = searchParams.get("subjectId") || "";
   const initialTestId = searchParams.get("testId") || "";
+  const [subjects, setSubjects] = useState(initialSubjects);
   const [selectedSubjectId, setSelectedSubjectId] =
     useState<string>(initialSubjectId);
   const [selectedTestId, setSelectedTestId] = useState<string>(initialTestId);
@@ -240,9 +241,7 @@ export function QuestionsPageClient({
     reset: resetEditForm,
     formState: { errors: editErrors },
   } = editForm;
-  const selectedSubject = initialSubjects.find(
-    (s) => s.id === selectedSubjectId
-  );
+  const selectedSubject = subjects.find((s) => s.id === selectedSubjectId);
   const availableTests = selectedSubject?.tests || [];
 
   const populateTestForm = useCallback(
@@ -491,8 +490,20 @@ export function QuestionsPageClient({
             : "Test deleted successfully.";
         toast.success("Test deleted", { description: message });
         setDeleteDialogOpen(false);
+        setSubjects((prev) =>
+          prev.map((subject) =>
+            subject.id === testDetails.test.subject.id
+              ? {
+                  ...subject,
+                  tests: subject.tests.filter(
+                    (test) => test.id !== testDetails.test.id
+                  ),
+                  totalTests: Math.max(subject.totalTests - 1, 0),
+                }
+              : subject
+          )
+        );
         handleBackToList();
-        router.refresh();
       } else {
         const message =
           result.data && "message" in result.data
@@ -508,7 +519,7 @@ export function QuestionsPageClient({
     } finally {
       setDeletingTest(false);
     }
-  }, [testDetails, handleBackToList, router]);
+  }, [testDetails, handleBackToList]);
 
   const handleClearCheating = useCallback(
     async (attemptId: string) => {

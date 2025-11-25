@@ -729,7 +729,7 @@ export const recordAttemptCheat = async (attemptId: string) => {
         0) ||
       0;
     const newCount = currentCheat + 1;
-    const blocked = newCount >= 2;
+    const blocked = newCount >= 3;
 
     const newSubmittedAt =
       blocked && !attempt.submittedAt ? new Date() : attempt.submittedAt;
