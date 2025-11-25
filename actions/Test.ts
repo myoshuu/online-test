@@ -381,6 +381,55 @@ export const getTestById = async (testId: string) => {
   }
 };
 
+export const deleteTest = async (testId: string) => {
+  try {
+    const user = await authenticate();
+    if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) {
+      return res(false, { message: "Unauthorized" });
+    }
+
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      select: { subjectId: true },
+    });
+
+    if (!test) {
+      return res(false, { message: "Test not found" });
+    }
+
+    if (user.role === "LECTURER") {
+      const hasAccess = await ensureLecturerSubjectAccess(
+        user.id,
+        test.subjectId
+      );
+      if (!hasAccess) {
+        return res(false, { message: "Unauthorized" });
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.answer.deleteMany({
+        where: {
+          OR: [
+            { Question: { testId } },
+            { Attempt: { testId } },
+          ],
+        },
+      });
+      await tx.attempt.deleteMany({ where: { testId } });
+      await tx.question.deleteMany({ where: { testId } });
+      await tx.test.delete({ where: { id: testId } });
+    });
+
+    return res(true, { message: "Test deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting test:", error);
+    return res(false, {
+      message: "Internal server error, during test deletion process",
+    });
+  }
+};
+
 export const regenerateTestAccessCode = async (testId: string) => {
   try {
     const user = await authenticate();
@@ -606,8 +655,8 @@ export const getStudentTestAttempt = async (
     }
 
     const cheatCountValue = attemptRecord.cheatCount ?? 0;
-    // Only block if cheating limit (2) is reached, not just any cheating detection
-    if (cheatCountValue >= 2) {
+    // Only block if cheating limit (3) is reached, not just any cheating detection
+    if (cheatCountValue >= 3) {
       await clearActiveExamCookie();
       return res(false, {
         message: "You already did the test indicate cheating",

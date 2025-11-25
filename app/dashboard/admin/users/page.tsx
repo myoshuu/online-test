@@ -55,8 +55,11 @@ const UsersPage = async () => {
     },
   });
 
+  // Remove the currently logged-in admin so they can't edit themselves
+  const usersExcludingCurrent = allUsers.filter((u) => u.id !== user.id);
+
   // Sort users properly
-  const sortedUsers = sortUsers(allUsers as UserWithRole[]);
+  const sortedUsers = sortUsers(usersExcludingCurrent as UserWithRole[]);
 
   // Fetch creator and updater names
   const userIds = new Set<string>();

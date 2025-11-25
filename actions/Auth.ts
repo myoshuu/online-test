@@ -239,7 +239,12 @@ export const getUsers = async (params: GetUsersParams = {}) => {
 
     // Get users with role-based ordering (ADMIN, LECTURER, STUDENT)
     const users = await prisma.user.findMany({
-      where,
+      where: {
+        ...where,
+        NOT: {
+          id: user.id,
+        },
+      },
       select: {
         id: true,
         name: true,

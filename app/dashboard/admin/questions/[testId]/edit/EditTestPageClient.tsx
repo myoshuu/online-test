@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createQuestion,
@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -126,6 +127,32 @@ export function EditTestPageClient({
   >([{ question: "", isCorrect: null }]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [questionMode, setQuestionMode] = useState<"single" | "bulk">("single");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const questionsWithOrder = useMemo(
+    () =>
+      questions.map((question, index) => ({
+        data: question,
+        displayOrder: question.order ?? index + 1,
+      })),
+    [questions]
+  );
+
+  const filteredQuestions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) {
+      return questionsWithOrder;
+    }
+    return questionsWithOrder.filter(({ data, displayOrder }) => {
+      const orderLabel = `question ${displayOrder}`.toLowerCase();
+      const orderNumber = displayOrder.toString();
+      return (
+        orderLabel.includes(term) ||
+        orderNumber.includes(term) ||
+        data.question.toLowerCase().includes(term)
+      );
+    });
+  }, [questionsWithOrder, searchTerm]);
 
   const handleAddQuestion = async () => {
     const validation = questionFormSchema.safeParse(formData);
@@ -714,60 +741,85 @@ export function EditTestPageClient({
             </p>
           ) : (
             <div className="space-y-4">
-              {questions.map((question, index) => (
-                <div
-                  key={question.id}
-                  className="border border-border rounded-lg p-4 space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-semibold text-muted-foreground">
-                          Question {question.order ?? index + 1}:
-                        </span>
-                        {question.isCorrect !== null && (
-                          <div className="flex items-center gap-1">
-                            {question.isCorrect ? (
-                              <CheckCircle className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-red-600" />
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              Correct: {question.isCorrect ? "True" : "False"}
-                            </span>
-                          </div>
-                        )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Input
+                  type="search"
+                  placeholder="Search by question number or text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-lg"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Showing{" "}
+                  <span className="font-semibold">
+                    {filteredQuestions.length}
+                  </span>{" "}
+                  of <span className="font-semibold">{questions.length}</span>{" "}
+                  questions
+                </p>
+              </div>
+
+              {filteredQuestions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No questions match &quot;{searchTerm.trim()}&quot;. Try another
+                  keyword or number.
+                </p>
+              ) : (
+                filteredQuestions.map(({ data: question, displayOrder }) => (
+                  <div
+                    key={question.id}
+                    className="border border-border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-semibold text-muted-foreground">
+                            Question {displayOrder}:
+                          </span>
+                          {question.isCorrect !== null && (
+                            <div className="flex items-center gap-1">
+                              {question.isCorrect ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-600" />
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                Correct: {question.isCorrect ? "True" : "False"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm">{question.question}</p>
                       </div>
-                      <p className="text-sm">{question.question}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditQuestion(question)}
-                        disabled={loading || editingId === question.id}
-                        className="cursor-pointer"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          setDeleteConfirm({
-                            open: true,
-                            questionId: question.id,
-                          })
-                        }
-                        disabled={loading}
-                        className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditQuestion(question)}
+                          disabled={loading || editingId === question.id}
+                          className="cursor-pointer"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setDeleteConfirm({
+                              open: true,
+                              questionId: question.id,
+                            })
+                          }
+                          disabled={loading}
+                          className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
         </CardContent>

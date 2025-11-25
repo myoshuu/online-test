@@ -26,7 +26,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const LoginPageClient = () => {
+interface LoginPageClientProps {
+  initialValues: LoginInput;
+}
+
+const LoginPageClient = ({ initialValues }: LoginPageClientProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,10 +38,7 @@ const LoginPageClient = () => {
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      nim: "",
-      password: "",
-    },
+    defaultValues: initialValues,
   });
 
   const onSubmit = async (data: LoginInput) => {

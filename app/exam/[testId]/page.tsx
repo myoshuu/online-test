@@ -250,7 +250,7 @@ const StudentExamPage = () => {
   };
 
   const registerCheat = useCallback(async () => {
-    if (!attempt || cheatLock || cheatCount >= 2 || !pageLoadedRef.current) {
+    if (!attempt || cheatLock || cheatCount >= 3 || !pageLoadedRef.current) {
       return;
     }
     setCheatLock(true);
@@ -259,10 +259,10 @@ const StudentExamPage = () => {
       if (result.success && result.data && "cheatCount" in result.data) {
         const updatedCount = (result.data.cheatCount as number) ?? 0;
         setCheatCount(updatedCount);
-        const remaining = Math.max(0, 2 - updatedCount);
+        const remaining = Math.max(0, 3 - updatedCount);
         setCheatDialogMessage(
-          updatedCount >= 2
-            ? "Cheating detected two times. The test has been submitted."
+          updatedCount >= 3
+            ? "Cheating detected three times. The test has been submitted."
             : `Cheating detected. You have ${remaining} chance(s) left.`
         );
         setCheatDialogOpen(true);
@@ -335,7 +335,7 @@ const StudentExamPage = () => {
               Question {questionIndex + 1} of {totalQuestions}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Cheating warnings: {cheatCount}/2
+              Cheating warnings: {cheatCount}/3
             </p>
           </div>
           {timeLeft && (
@@ -462,7 +462,7 @@ const StudentExamPage = () => {
       <Dialog
         open={cheatDialogOpen}
         onOpenChange={(open) => {
-          if (cheatCount < 2) {
+          if (cheatCount < 3) {
             setCheatDialogOpen(open);
           }
         }}
@@ -472,7 +472,7 @@ const StudentExamPage = () => {
             <DialogTitle>Cheating Detected</DialogTitle>
             <DialogDescription>{cheatDialogMessage}</DialogDescription>
           </DialogHeader>
-          {cheatCount < 2 && (
+          {cheatCount < 3 && (
             <DialogFooter>
               <Button onClick={() => setCheatDialogOpen(false)}>Continue</Button>
             </DialogFooter>

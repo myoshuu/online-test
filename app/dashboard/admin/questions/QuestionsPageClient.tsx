@@ -7,6 +7,7 @@ import {
   updateTest,
   regenerateTestAccessCode,
   clearStudentCheating,
+  deleteTest,
 } from "@/actions/Test";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,7 @@ import {
   ArrowLeft,
   Clock,
   Plus,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -53,6 +55,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatDateTime } from "@/lib/dateUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm, Controller } from "react-hook-form";
@@ -166,6 +178,8 @@ type TestDetails = {
   totalRespondents: number;
 };
 
+type RespondentDetails = TestDetails["respondents"][number];
+
 interface QuestionsPageClientProps {
   initialSubjects: Subject[];
   createHref?: string;
@@ -201,6 +215,11 @@ export function QuestionsPageClient({
   const [accessCode, setAccessCode] = useState<string | null>(null);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [clearingCheating, setClearingCheating] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingTest, setDeletingTest] = useState(false);
+  const [respondentDialogOpen, setRespondentDialogOpen] = useState(false);
+  const [selectedRespondent, setSelectedRespondent] =
+    useState<RespondentDetails | null>(null);
   const isNavigatingBackRef = useRef(false);
   const editForm = useForm<CreateTestFormInput>({
     resolver: zodResolver(createTestFormSchema),
@@ -313,7 +332,7 @@ export function QuestionsPageClient({
     await loadTestDetails(testId);
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     // Mark that we're intentionally navigating back
     isNavigatingBackRef.current = true;
 
@@ -339,7 +358,7 @@ export function QuestionsPageClient({
     setTimeout(() => {
       isNavigatingBackRef.current = false;
     }, 100);
-  };
+  }, [selectedSubjectId, router, pathname]);
 
   useEffect(() => {
     setMounted(true);
@@ -460,6 +479,37 @@ export function QuestionsPageClient({
     }
   }, [testDetails]);
 
+  const handleDeleteTest = useCallback(async () => {
+    if (!testDetails) return;
+    setDeletingTest(true);
+    try {
+      const result = await deleteTest(testDetails.test.id);
+      if (result.success) {
+        const message =
+          result.data && "message" in result.data
+            ? result.data.message
+            : "Test deleted successfully.";
+        toast.success("Test deleted", { description: message });
+        setDeleteDialogOpen(false);
+        handleBackToList();
+        router.refresh();
+      } else {
+        const message =
+          result.data && "message" in result.data
+            ? result.data.message
+            : "Failed to delete test";
+        toast.error("Delete failed", { description: message });
+      }
+    } catch (error) {
+      console.error("Failed to delete test:", error);
+      toast.error("Delete failed", {
+        description: "An unexpected error occurred while deleting the test.",
+      });
+    } finally {
+      setDeletingTest(false);
+    }
+  }, [testDetails, handleBackToList, router]);
+
   const handleClearCheating = useCallback(
     async (attemptId: string) => {
       if (!testDetails) return;
@@ -540,7 +590,7 @@ export function QuestionsPageClient({
             </BreadcrumbList>
           </Breadcrumb>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Button
@@ -562,6 +612,27 @@ export function QuestionsPageClient({
                 {testDetails.test.subject.name}
               </p>
             </div>
+            {canEditTestInfo && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={deletingTest}
+                className="cursor-pointer self-start md:self-auto"
+              >
+                {deletingTest ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Test
+                  </>
+                )}
+              </Button>
+            )}
           </div>
 
           {/* Test Info */}
@@ -876,22 +947,16 @@ export function QuestionsPageClient({
                                 <th className="sticky left-[520px] z-10 bg-muted/60 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-r border-border">
                                   Cheat Count
                                 </th>
-                                {testDetails.questions.map((q, idx) => (
-                                  <th
-                                    key={q.id}
-                                    className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground min-w-[60px] border-l border-border"
-                                    title={q.question}
-                                  >
-                                    Q{q.order ?? idx + 1}
-                                  </th>
-                                ))}
+                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-l border-border">
+                                  Actions
+                                </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border bg-card">
                               {testDetails.respondents.length === 0 ? (
                                 <tr>
                                   <td
-                                    colSpan={6 + testDetails.questions.length}
+                                    colSpan={7}
                                     className="px-4 py-10 text-center text-muted-foreground text-sm"
                                   >
                                     No respondents yet
@@ -972,29 +1037,19 @@ export function QuestionsPageClient({
                                         )}
                                       </div>
                                     </td>
-                                    {respondent.questionAnswers.map((qa) => (
-                                      <td
-                                        key={qa.questionId}
-                                        className="px-2 py-3 text-center border-l border-border"
+                                    <td className="px-4 py-3 border-l border-border">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="cursor-pointer"
+                                        onClick={() => {
+                                          setSelectedRespondent(respondent);
+                                          setRespondentDialogOpen(true);
+                                        }}
                                       >
-                                        {qa.studentAnswer !== null ? (
-                                          <div className="flex items-center justify-center gap-0.5">
-                                            {qa.isCorrect ? (
-                                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                                            ) : (
-                                              <XCircle className="w-3.5 h-3.5 text-red-600" />
-                                            )}
-                                            <span className="text-xs font-semibold">
-                                              {qa.studentAnswer ? "T" : "F"}
-                                            </span>
-                                          </div>
-                                        ) : (
-                                          <span className="text-xs text-muted-foreground">
-                                            -
-                                          </span>
-                                        )}
-                                      </td>
-                                    ))}
+                                        View More
+                                      </Button>
+                                    </td>
                                   </tr>
                                 ))
                               )}
@@ -1003,11 +1058,10 @@ export function QuestionsPageClient({
                         </div>
                       </div>
                     </div>
-                    {testDetails.questions.length > 10 && (
-                      <p className="mt-2 text-xs text-muted-foreground text-center">
-                        Scroll horizontally to view all questions
-                      </p>
-                    )}
+                    <p className="mt-2 text-xs text-muted-foreground text-center">
+                      Select “View More” to inspect a student&apos;s per-question
+                      answers in detail.
+                    </p>
                   </div>
                 </TabsContent>
               </Tabs>
@@ -1152,6 +1206,159 @@ export function QuestionsPageClient({
                   </Button>
                 </DialogFooter>
               </form>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {canEditTestInfo && (
+          <AlertDialog
+            open={deleteDialogOpen}
+            onOpenChange={(open) => {
+              if (deletingTest) return;
+              setDeleteDialogOpen(open);
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this test?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action will permanently remove{" "}
+                  <span className="font-semibold">
+                    {testDetails.test.title}
+                  </span>{" "}
+                  and all of its questions, attempts, and results. This cannot be
+                  undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={() => setDeleteDialogOpen(false)}
+                  disabled={deletingTest}
+                  className="cursor-pointer"
+                >
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteTest}
+                  disabled={deletingTest}
+                  className="bg-destructive text-white hover:bg-destructive/90 cursor-pointer"
+                >
+                  {deletingTest ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete Test"
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        {selectedRespondent && (
+          <Dialog
+            open={respondentDialogOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                setRespondentDialogOpen(false);
+                setSelectedRespondent(null);
+              } else {
+                setRespondentDialogOpen(true);
+              }
+            }}
+          >
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Respondent Details</DialogTitle>
+                <DialogDescription>
+                  {selectedRespondent.userName} ({selectedRespondent.userNim})
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg border border-border bg-muted/40">
+                    <p className="text-xs text-muted-foreground mb-1">Score</p>
+                    <p className="text-lg font-bold">
+                      {selectedRespondent.overallScore.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg border border-border bg-muted/40">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Correct Answers
+                    </p>
+                    <p className="text-lg font-bold">
+                      {selectedRespondent.correctCount} /{" "}
+                      {selectedRespondent.totalQuestions}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg border border-border bg-muted/40">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Submitted
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {selectedRespondent.submittedAt
+                        ? formatDateTime(
+                            new Date(selectedRespondent.submittedAt)
+                          )
+                        : "Not submitted"}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/60">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          #
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Question
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Student Answer
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Result
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border bg-card">
+                      {selectedRespondent.questionAnswers.map((qa, index) => (
+                        <tr key={qa.questionId}>
+                          <td className="px-4 py-2 text-sm font-semibold text-muted-foreground">
+                            {qa.order ?? index + 1}
+                          </td>
+                          <td className="px-4 py-2 text-sm">{qa.question}</td>
+                          <td className="px-4 py-2 text-sm">
+                            {qa.studentAnswer === null
+                              ? "Not answered"
+                              : qa.studentAnswer
+                              ? "True"
+                              : "False"}
+                          </td>
+                          <td className="px-4 py-2">
+                            {qa.studentAnswer === null ? (
+                              <span className="text-xs text-muted-foreground">
+                                -
+                              </span>
+                            ) : qa.isCorrect ? (
+                              <span className="text-xs font-semibold text-emerald-600">
+                                Correct
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-red-600">
+                                Incorrect
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         )}
