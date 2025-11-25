@@ -44,6 +44,27 @@ const updateSubjectSchema = z.object({
 });
 
 type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;
+type SubjectResponseData =
+  | {
+      message: string;
+    }
+  | {
+      subject: {
+        name: string;
+        description: string | null;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        code: string | null;
+      };
+    };
+
+const extractMessage = (data: SubjectResponseData | undefined, fallback: string) => {
+  if (data && "message" in data) {
+    return data.message;
+  }
+  return fallback;
+};
 
 export default function EditSubjectPage() {
   const params = useParams();
@@ -85,10 +106,11 @@ export default function EditSubjectPage() {
             description: subject.description || "",
           });
         } else {
-          setError(result.data?.message || "Failed to load subject");
+          const message = extractMessage(result.data as SubjectResponseData | undefined, "Failed to load subject");
+          setError(message);
           showModal({
             title: "Error",
-            description: result.data?.message || "Failed to load subject data. Please try again.",
+            description: message,
             variant: "error",
           });
         }
@@ -127,10 +149,11 @@ export default function EditSubjectPage() {
           onConfirm: () => router.push("/dashboard/admin/subjects"),
         });
       } else {
-        setError(result.data?.message || "Failed to update subject");
+        const message = extractMessage(result.data as SubjectResponseData | undefined, "Failed to update subject");
+        setError(message);
         showModal({
           title: "Update Failed",
-          description: result.data?.message || "Failed to update subject",
+          description: message,
           variant: "error",
         });
       }
