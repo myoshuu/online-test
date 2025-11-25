@@ -73,12 +73,12 @@ ENV PORT=3000
 
 RUN apt-get update -y && apt-get install -y openssl
 
-# Copy node_modules dari builder, bukan cuma standalone
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next/standalone ./ 
+COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/app/generated/prisma ./app/generated/prisma
 
 EXPOSE 3000
