@@ -9,7 +9,7 @@ export const registerSchema = z.object({
   name: z.string().min(1, "Full name is required"),
   nim: z.string().min(1, "Please enter a valid NIM"),
   role: z.enum(["ADMIN", "LECTURER", "STUDENT"]).optional(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(7, "Password must be at least 7 characters"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
