@@ -865,6 +865,170 @@ export const submitStudentAttempt = async (data: {
   }
 };
 
+export const getStudentScores = async () => {
+  try {
+    const user = await authenticate();
+    if (!user || user.role !== "STUDENT") {
+      return res(false, { message: "Unauthorized" });
+    }
+
+    const attempts = await prisma.attempt.findMany({
+      where: {
+        userId: user.id,
+        submittedAt: { not: null },
+        OR: [
+          { Test: { scoreAnnouncedToAll: true } },
+          { scoreAnnounced: true },
+        ],
+      },
+      include: {
+        Test: {
+          include: {
+            Subject: {
+              select: {
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+        answers: {
+          include: {
+            Question: {
+              select: {
+                id: true,
+                question: true,
+                isCorrect: true,
+                order: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { submittedAt: "desc" },
+    });
+
+    const scores = attempts.map((attempt) => {
+      const totalQuestions = attempt.answers.length;
+      const correctCount = attempt.answers.filter(
+        (answer) => answer.isCorrect === true
+      ).length;
+      const wrongCount = attempt.answers.filter(
+        (answer) => answer.isCorrect === false
+      ).length;
+
+      return {
+        attemptId: attempt.id,
+        testId: attempt.testId,
+        testTitle: attempt.Test.title,
+        subjectName: attempt.Test.Subject.name,
+        subjectCode: attempt.Test.Subject.code,
+        score: attempt.score,
+        correctCount,
+        wrongCount,
+        totalQuestions,
+        submittedAt: attempt.submittedAt?.toISOString() ?? null,
+        questionAnswers: attempt.answers
+          .sort((a, b) => (a.Question.order ?? 0) - (b.Question.order ?? 0))
+          .map((answer) => ({
+            questionId: answer.questionId,
+            question: answer.Question.question,
+            correctAnswer: answer.Question.isCorrect,
+            studentAnswer: answer.boolAnswer,
+            isCorrect: answer.isCorrect,
+            order: answer.Question.order ?? 0,
+          })),
+      };
+    });
+
+    return res(true, { scores });
+  } catch (error) {
+    console.error("Error fetching student scores:", error);
+    return res(false, { message: "Failed to load scores" });
+  }
+};
+
+export const updateScoreAnnouncement = async (
+  testId: string,
+  data: {
+    announceToAll?: boolean;
+    studentIds?: string[];
+  }
+) => {
+  try {
+    const user = await authenticate();
+    if (!user || (user.role !== "ADMIN" && user.role !== "LECTURER")) {
+      return res(false, { message: "Unauthorized" });
+    }
+
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      include: {
+        Subject: {
+          include: {
+            enrollments: {
+              select: { userId: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!test) {
+      return res(false, { message: "Test not found" });
+    }
+
+    // Check if lecturer has access to this subject
+    if (user.role === "LECTURER") {
+      const hasAccess = await prisma.userSubject.findFirst({
+        where: {
+          userId: user.id,
+          subjectId: test.subjectId,
+        },
+      });
+      if (!hasAccess) {
+        return res(false, { message: "Unauthorized" });
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Update test's announceToAll setting
+      if (data.announceToAll !== undefined) {
+        await tx.test.update({
+          where: { id: testId },
+          data: { scoreAnnouncedToAll: data.announceToAll },
+        });
+      }
+
+      // Update individual student announcements
+      if (data.studentIds !== undefined) {
+        // First, reset all attempts for this test
+        await tx.attempt.updateMany({
+          where: { testId },
+          data: { scoreAnnounced: false },
+        });
+
+        // Then set scoreAnnounced for specified students
+        if (data.studentIds.length > 0) {
+          await tx.attempt.updateMany({
+            where: {
+              testId,
+              userId: { in: data.studentIds },
+              submittedAt: { not: null },
+            },
+            data: { scoreAnnounced: true },
+          });
+        }
+      }
+    });
+
+    return res(true, { message: "Score announcement updated" });
+  } catch (error) {
+    console.error("Error updating score announcement:", error);
+    return res(false, { message: "Failed to update announcement" });
+  }
+};
+
 export const clearStudentCheating = async (attemptId: string) => {
   try {
     const user = await authenticate();

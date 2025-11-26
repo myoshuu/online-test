@@ -83,6 +83,12 @@ const navConfig: NavItem[] = [
     roles: ["STUDENT"],
   },
   {
+    label: "My Scores",
+    href: "/dashboard/student/scores",
+    icon: BookOpen,
+    roles: ["STUDENT"],
+  },
+  {
     label: "Profile",
     href: "/dashboard/profile",
     icon: UserCircle,

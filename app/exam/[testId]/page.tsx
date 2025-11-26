@@ -104,6 +104,8 @@ const StudentExamPage = () => {
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isLoadingRef = useRef(false);
   const hasRedirectedRef = useRef(false);
+  const isTimeOverRef = useRef(false);
+  const hasAutoSubmittedRef = useRef(false);
 
   useEffect(() => {
     if (hasRedirectedRef.current) {
@@ -174,6 +176,15 @@ const StudentExamPage = () => {
             {}
           )
         );
+        
+        // Check if time is already over
+        if (data.endDate) {
+          const end = new Date(data.endDate).getTime();
+          if (!Number.isNaN(end) && Date.now() > end) {
+            isTimeOverRef.current = true;
+          }
+        }
+        
         isLoadingRef.current = false;
         setLoading(false);
         // Mark page as loaded after delay to prevent initial navigation/load from counting as cheating
@@ -211,6 +222,63 @@ const StudentExamPage = () => {
     };
   }, [testId, router]); // Removed accessCode from dependencies to prevent re-running on URL changes
 
+  // Auto-submit function
+  const autoSubmit = useCallback(async () => {
+    if (!attempt || submitting || hasAutoSubmittedRef.current) {
+      return;
+    }
+    hasAutoSubmittedRef.current = true;
+    isTimeOverRef.current = true;
+    setSubmitting(true);
+    try {
+      // Save all current answers (even if not all questions are answered)
+      const formattedAnswers = Object.entries(answers)
+        .filter(([_, value]) => value !== null && value !== undefined)
+        .map(([questionId, value]) => ({
+          questionId,
+          answer: value as boolean,
+        }));
+      
+      // Only submit if we have at least some answers
+      if (formattedAnswers.length > 0) {
+        const result = await submitStudentAttempt({
+          attemptId: attempt.attemptId,
+          answers: formattedAnswers,
+        });
+        if (result.success) {
+          toast.success("Test automatically submitted. Time is up!");
+        } else {
+          const message =
+            result.data && "message" in result.data
+              ? result.data.message
+              : "Failed to submit test";
+          toast.error(message);
+        }
+      } else {
+        // No answers to save, just mark as submitted
+        const result = await submitStudentAttempt({
+          attemptId: attempt.attemptId,
+          answers: [],
+        });
+        if (result.success) {
+          toast.info("Test time expired. No answers were saved.");
+        }
+      }
+      
+      // Clear cookie and redirect
+      await clearActiveExamCookie();
+      window.location.href = "/dashboard/student/tests";
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to submit test";
+      toast.error(message);
+      await clearActiveExamCookie();
+      window.location.href = "/dashboard/student/tests";
+    } finally {
+      setSubmitting(false);
+    }
+  }, [attempt, submitting, answers]);
+
   useEffect(() => {
     if (!attempt?.startDate || !attempt.endDate) {
       setTimeLeft(null);
@@ -228,14 +296,24 @@ const StudentExamPage = () => {
         setTimeLeft(formatCountdown(start - now));
       } else if (now > end) {
         setTimeLeft("Test window ended");
+        isTimeOverRef.current = true;
+        // Auto-submit when time is over
+        if (!hasAutoSubmittedRef.current) {
+          autoSubmit();
+        }
       } else {
         setTimeLeft(formatCountdown(end - now));
+        // Check if time is very close to ending (less than 1 second)
+        if (end - now <= 1000 && !hasAutoSubmittedRef.current) {
+          isTimeOverRef.current = true;
+          autoSubmit();
+        }
       }
     };
     update();
     const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
-  }, [attempt]);
+  }, [attempt, autoSubmit]);
 
   const currentQuestion = useMemo(() => {
     if (!attempt) return null;
@@ -285,7 +363,7 @@ const StudentExamPage = () => {
   };
 
   const confirmSubmit = async () => {
-    if (!attempt || submitting) {
+    if (!attempt || submitting || hasAutoSubmittedRef.current) {
       return;
     }
     setSubmitConfirmOpen(false);
@@ -302,8 +380,10 @@ const StudentExamPage = () => {
         answers: formattedAnswers,
       });
       if (result.success) {
+        hasAutoSubmittedRef.current = true;
         toast.success("Test submitted!");
-        router.replace("/dashboard/student/tests");
+        await clearActiveExamCookie();
+        window.location.href = "/dashboard/student/tests";
       } else {
         const message =
           result.data && "message" in result.data
@@ -327,7 +407,8 @@ const StudentExamPage = () => {
       cheatCount >= 3 ||
       !pageLoadedRef.current ||
       isInitializingRef.current ||
-      loading
+      loading ||
+      isTimeOverRef.current // Don't count as cheat if time is over
     ) {
       return;
     }
@@ -345,8 +426,11 @@ const StudentExamPage = () => {
         );
         setCheatDialogOpen(true);
         if (result.data.blocked) {
-          toast.error("Cheating limit reached. The test has ended.");
-          setTimeout(() => router.replace("/dashboard/student/tests"), 2000);
+          // Clear the active exam cookie to prevent middleware redirect loop
+          clearActiveExamCookie().then(() => {
+            // Use window.location for immediate redirect
+            window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("Cheating limit reached. The test has ended.");
+          });
         }
       } else {
         const message =

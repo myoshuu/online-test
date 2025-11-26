@@ -4,7 +4,7 @@ export const loginSchema = z.object({
   nim: z
     .string()
     .min(5, "NIM must be at least 5 characters")
-    .max(8, "NIM must be at most 8 characters"),
+    .max(10, "NIM must be at most 10 characters"),
   password: z.string().min(1, "Password wajib diisi"),
 });
 
@@ -13,7 +13,7 @@ export const registerSchema = z.object({
   nim: z
     .string()
     .min(5, "NIM must be at least 5 characters")
-    .max(8, "NIM must be at most 8 characters"),
+    .max(10, "NIM must be at most 10 characters"),
   role: z.enum(["ADMIN", "LECTURER", "STUDENT"]).optional(),
   password: z.string().min(7, "Password must be at least 7 characters"),
 });
@@ -112,7 +112,7 @@ export const createUserSchema = z.object({
   nim: z
     .string()
     .min(5, "NIM must be at least 5 characters")
-    .max(8, "NIM must be at most 8 characters"),
+    .max(10, "NIM must be at most 10 characters"),
   role: z.enum(["ADMIN", "LECTURER", "STUDENT"], {
     message: "Please select a role",
   }),
@@ -125,7 +125,7 @@ export const updateUserSchema = z.object({
   nim: z
     .string()
     .min(5, "NIM must be at least 5 characters")
-    .max(8, "NIM must be at most 8 characters"),
+    .max(10, "NIM must be at most 10 characters"),
   role: z.enum(["ADMIN", "LECTURER", "STUDENT"], {
     message: "Please select a role",
   }),

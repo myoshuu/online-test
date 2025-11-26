@@ -6,7 +6,7 @@ import { StudentTestsPageClient } from "./StudentTestsPageClient";
 const StudentTestsPage = async ({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: Promise<{ error?: string }>;
 }) => {
   const user = await authorize(["STUDENT"]);
   if (!user) {
@@ -19,8 +19,9 @@ const StudentTestsPage = async ({
       ? result.data.subjects
       : [];
 
-  const errorMessage = searchParams?.error
-    ? decodeURIComponent(searchParams.error)
+  const params = await searchParams;
+  const errorMessage = params?.error
+    ? decodeURIComponent(params.error)
     : null;
 
   return (

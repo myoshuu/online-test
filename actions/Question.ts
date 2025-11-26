@@ -170,6 +170,7 @@ export const getTestDetails = async (testId: string) => {
         startedAt: attempt.startedAt,
         endAt: attempt.endAt,
         cheatCount: cheatCountValue,
+        scoreAnnounced: attempt.scoreAnnounced ?? false,
         questionAnswers,
       };
     });
@@ -197,6 +198,7 @@ export const getTestDetails = async (testId: string) => {
         updatedAt: test.updatedAt,
         subject: test.Subject,
         accessCode: test.accessCode || null,
+        scoreAnnouncedToAll: test.scoreAnnouncedToAll ?? false,
       },
       questions: test.questions.map((q) => ({
         id: q.id,

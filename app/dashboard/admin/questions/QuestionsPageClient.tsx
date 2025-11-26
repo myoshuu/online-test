@@ -8,6 +8,7 @@ import {
   regenerateTestAccessCode,
   clearStudentCheating,
   deleteTest,
+  updateScoreAnnouncement,
 } from "@/actions/Test";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,7 @@ import {
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -146,6 +148,8 @@ type TestDetails = {
       name: string;
       code: string | null;
     };
+    accessCode: string | null;
+    scoreAnnouncedToAll: boolean;
   };
   questions: Array<{
     id: string;
@@ -165,6 +169,7 @@ type TestDetails = {
     startedAt: Date | string | null;
     endAt: Date | string | null;
     cheatCount: number;
+    scoreAnnounced: boolean;
     questionAnswers: Array<{
       questionId: string;
       question: string;
@@ -221,6 +226,9 @@ export function QuestionsPageClient({
   const [respondentDialogOpen, setRespondentDialogOpen] = useState(false);
   const [selectedRespondent, setSelectedRespondent] =
     useState<RespondentDetails | null>(null);
+  const [updatingAnnouncement, setUpdatingAnnouncement] = useState(false);
+  const [announcementDialogOpen, setAnnouncementDialogOpen] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const isNavigatingBackRef = useRef(false);
   const editForm = useForm<CreateTestFormInput>({
     resolver: zodResolver(createTestFormSchema),
@@ -451,6 +459,70 @@ export function QuestionsPageClient({
       setUpdatingTest(false);
     }
   });
+
+  const handleUpdateAnnouncement = useCallback(async () => {
+    if (!testDetails) return;
+    setUpdatingAnnouncement(true);
+    try {
+      const result = await updateScoreAnnouncement(testDetails.test.id, {
+        announceToAll: testDetails.test.scoreAnnouncedToAll,
+        studentIds: selectedStudentIds,
+      });
+      if (result.success) {
+        toast.success("Score announcement updated");
+        const refreshed = await getTestDetails(testDetails.test.id);
+        if (refreshed.success && refreshed.data && "test" in refreshed.data) {
+          setTestDetails(refreshed.data);
+        }
+        setAnnouncementDialogOpen(false);
+        setSelectedStudentIds([]);
+      } else {
+        const message =
+          result.data && "message" in result.data
+            ? result.data.message
+            : "Failed to update announcement";
+        toast.error(message);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update announcement");
+    } finally {
+      setUpdatingAnnouncement(false);
+    }
+  }, [testDetails, selectedStudentIds]);
+
+  const handleToggleAnnounceToAll = useCallback(async () => {
+    if (!testDetails) return;
+    setUpdatingAnnouncement(true);
+    try {
+      const newValue = !testDetails.test.scoreAnnouncedToAll;
+      const result = await updateScoreAnnouncement(testDetails.test.id, {
+        announceToAll: newValue,
+      });
+      if (result.success) {
+        toast.success(
+          newValue
+            ? "Scores are now visible to all students"
+            : "Scores are now hidden from all students"
+        );
+        const refreshed = await getTestDetails(testDetails.test.id);
+        if (refreshed.success && refreshed.data && "test" in refreshed.data) {
+          setTestDetails(refreshed.data);
+        }
+      } else {
+        const message =
+          result.data && "message" in result.data
+            ? result.data.message
+            : "Failed to update announcement";
+        toast.error(message);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update announcement");
+    } finally {
+      setUpdatingAnnouncement(false);
+    }
+  }, [testDetails]);
 
   const handleRegenerateCode = useCallback(async () => {
     if (!testDetails) return;
@@ -807,6 +879,69 @@ export function QuestionsPageClient({
                     No access code set yet. Click regenerate to create one.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-lg">Score Announcement</CardTitle>
+                <CardDescription>
+                  Control which students can see their test scores
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold mb-1">
+                      Announce to All Students
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {testDetails.test.scoreAnnouncedToAll
+                        ? "All students can see their scores"
+                        : "Scores are hidden from all students"}
+                    </p>
+                  </div>
+                  <Button
+                    variant={testDetails.test.scoreAnnouncedToAll ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleToggleAnnounceToAll}
+                    disabled={updatingAnnouncement}
+                    className="cursor-pointer"
+                  >
+                    {updatingAnnouncement ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : testDetails.test.scoreAnnouncedToAll ? (
+                      "Hide from All"
+                    ) : (
+                      "Show to All"
+                    )}
+                  </Button>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                  <p className="text-sm font-semibold mb-2">
+                    Announce to Specific Students
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Select specific students who can see their scores (overrides
+                    "Announce to All" setting)
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Pre-select students who already have scoreAnnounced
+                      const announcedStudentIds = testDetails.respondents
+                        .filter((r) => r.scoreAnnounced)
+                        .map((r) => r.userId);
+                      setSelectedStudentIds(announcedStudentIds);
+                      setAnnouncementDialogOpen(true);
+                    }}
+                    disabled={updatingAnnouncement || testDetails.totalRespondents === 0}
+                    className="cursor-pointer"
+                  >
+                    Select Students
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -1370,6 +1505,107 @@ export function QuestionsPageClient({
                   </table>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Score Announcement Dialog */}
+        {testDetails && (
+          <Dialog
+            open={announcementDialogOpen}
+            onOpenChange={setAnnouncementDialogOpen}
+          >
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Select Students for Score Announcement</DialogTitle>
+                <DialogDescription>
+                  Choose which students can see their test scores. This will
+                  override the "Announce to All" setting for selected students.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {testDetails.respondents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No students have submitted this test yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {testDetails.respondents.map((respondent) => (
+                      <div
+                        key={respondent.userId}
+                        className="flex items-center space-x-2 p-2 rounded-lg border border-border hover:bg-muted/50"
+                      >
+                        <Checkbox
+                          id={`student-${respondent.userId}`}
+                          checked={selectedStudentIds.includes(respondent.userId)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedStudentIds([
+                                ...selectedStudentIds,
+                                respondent.userId,
+                              ]);
+                            } else {
+                              setSelectedStudentIds(
+                                selectedStudentIds.filter(
+                                  (id) => id !== respondent.userId
+                                )
+                              );
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`student-${respondent.userId}`}
+                          className="flex-1 cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {respondent.userName}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {respondent.userNim}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold">
+                                {respondent.overallScore.toFixed(1)}%
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {respondent.correctCount}/{respondent.totalQuestions} correct
+                              </p>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAnnouncementDialogOpen(false);
+                    setSelectedStudentIds([]);
+                  }}
+                  disabled={updatingAnnouncement}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdateAnnouncement}
+                  disabled={updatingAnnouncement}
+                >
+                  {updatingAnnouncement ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Announcement"
+                  )}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         )}

@@ -55,14 +55,15 @@ model Subject {
 }
 
 model Test {
-  id          String    @id @default(uuid())
-  title       String
-  description String?
-  userId      String
-  subjectId   String
-  startDate   DateTime?
-  endDate     DateTime?
-  accessCode  String?   @unique
+  id                  String    @id @default(uuid())
+  title               String
+  description         String?
+  userId              String
+  subjectId           String
+  startDate           DateTime?
+  endDate             DateTime?
+  accessCode          String?   @unique
+  scoreAnnouncedToAll Boolean   @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -99,11 +100,12 @@ model Attempt {
   testId   String
   answerId String?
 
-  score       Float?
-  startedAt   DateTime?
-  endAt       DateTime?
-  submittedAt DateTime?
-  cheatCount  Int       @default(0)
+  score          Float?
+  startedAt      DateTime?
+  endAt          DateTime?
+  submittedAt    DateTime?
+  cheatCount     Int       @default(0)
+  scoreAnnounced Boolean   @default(false)
 
   User User @relation(fields: [userId], references: [id])
   Test Test @relation(fields: [testId], references: [id])
