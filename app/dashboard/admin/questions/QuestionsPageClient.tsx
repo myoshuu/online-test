@@ -267,6 +267,43 @@ export function QuestionsPageClient({
     [resetEditForm]
   );
 
+  // Periodically refresh test details (respondents, scores, cheat counts, etc.)
+  // so admin/lecturer sees near real-time updates without manual refresh.
+  useEffect(() => {
+    if (!selectedTestId || viewMode !== "details") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const result = await getTestDetails(selectedTestId);
+        if (
+          !cancelled &&
+          result.success &&
+          result.data &&
+          "test" in result.data
+        ) {
+          setTestDetails(result.data);
+        }
+      } catch (error) {
+        // Silent fail for background refresh to avoid spamming toasts
+        console.error("Failed to auto-refresh test details", error);
+      }
+    };
+
+    // Initial background refresh soon after entering details view
+    const initialTimeout = setTimeout(refresh, 1500);
+    const interval = setInterval(refresh, 3000); // every 3s for snappier updates
+
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [selectedTestId, viewMode]);
+
   const loadTestDetails = useCallback(
     async (testId: string) => {
       setLoading(true);
@@ -902,7 +939,11 @@ export function QuestionsPageClient({
                     </p>
                   </div>
                   <Button
-                    variant={testDetails.test.scoreAnnouncedToAll ? "default" : "outline"}
+                    variant={
+                      testDetails.test.scoreAnnouncedToAll
+                        ? "default"
+                        : "outline"
+                    }
                     size="sm"
                     onClick={handleToggleAnnounceToAll}
                     disabled={updatingAnnouncement}
@@ -923,7 +964,7 @@ export function QuestionsPageClient({
                   </p>
                   <p className="text-xs text-muted-foreground mb-3">
                     Select specific students who can see their scores (overrides
-                    "Announce to All" setting)
+                    &quot;Announce to All&quot; setting)
                   </p>
                   <Button
                     variant="outline"
@@ -936,7 +977,9 @@ export function QuestionsPageClient({
                       setSelectedStudentIds(announcedStudentIds);
                       setAnnouncementDialogOpen(true);
                     }}
-                    disabled={updatingAnnouncement || testDetails.totalRespondents === 0}
+                    disabled={
+                      updatingAnnouncement || testDetails.totalRespondents === 0
+                    }
                     className="cursor-pointer"
                   >
                     Select Students
@@ -1095,7 +1138,7 @@ export function QuestionsPageClient({
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-l border-border">
                                   Actions
-                                  </th>
+                                </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border bg-card">
@@ -1195,7 +1238,7 @@ export function QuestionsPageClient({
                                       >
                                         View More
                                       </Button>
-                                      </td>
+                                    </td>
                                   </tr>
                                 ))
                               )}
@@ -1204,10 +1247,10 @@ export function QuestionsPageClient({
                         </div>
                       </div>
                     </div>
-                      <p className="mt-2 text-xs text-muted-foreground text-center">
-                      Select “View More” to inspect a student&apos;s per-question
-                      answers in detail.
-                      </p>
+                    <p className="mt-2 text-xs text-muted-foreground text-center">
+                      Select “View More” to inspect a student&apos;s
+                      per-question answers in detail.
+                    </p>
                   </div>
                 </TabsContent>
               </Tabs>
@@ -1372,8 +1415,8 @@ export function QuestionsPageClient({
                   <span className="font-semibold">
                     {testDetails.test.title}
                   </span>{" "}
-                  and all of its questions, attempts, and results. This cannot be
-                  undone.
+                  and all of its questions, attempts, and results. This cannot
+                  be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -1517,10 +1560,13 @@ export function QuestionsPageClient({
           >
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Select Students for Score Announcement</DialogTitle>
+                <DialogTitle>
+                  Select Students for Score Announcement
+                </DialogTitle>
                 <DialogDescription>
                   Choose which students can see their test scores. This will
-                  override the "Announce to All" setting for selected students.
+                  override the &quot;Announce to All&quot; setting for selected
+                  students.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -1537,7 +1583,9 @@ export function QuestionsPageClient({
                       >
                         <Checkbox
                           id={`student-${respondent.userId}`}
-                          checked={selectedStudentIds.includes(respondent.userId)}
+                          checked={selectedStudentIds.includes(
+                            respondent.userId
+                          )}
                           onCheckedChange={(checked) => {
                             if (checked) {
                               setSelectedStudentIds([
@@ -1571,7 +1619,8 @@ export function QuestionsPageClient({
                                 {respondent.overallScore.toFixed(1)}%
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {respondent.correctCount}/{respondent.totalQuestions} correct
+                                {respondent.correctCount}/
+                                {respondent.totalQuestions} correct
                               </p>
                             </div>
                           </div>

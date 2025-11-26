@@ -124,7 +124,7 @@ const StudentExamPage = () => {
       isLoadingRef.current = true;
       isInitializingRef.current = true;
       pageLoadedRef.current = false;
-      
+
       // Set a timeout to prevent infinite loading (30 seconds)
       loadTimeoutRef.current = setTimeout(() => {
         if (isLoadingRef.current) {
@@ -135,24 +135,26 @@ const StudentExamPage = () => {
           router.replace("/dashboard/student/tests");
         }
       }, 30000);
-      
+
       try {
         const data = await fetchTestAttempt(testId, accessCode);
         if (loadTimeoutRef.current) {
           clearTimeout(loadTimeoutRef.current);
           loadTimeoutRef.current = null;
         }
-        
+
         if (!data) {
           isLoadingRef.current = false;
           setLoading(false);
           hasRedirectedRef.current = true;
           // Clear the active exam cookie to prevent middleware redirect loop
           await clearActiveExamCookie();
-          window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("Failed to load test");
+          window.location.href =
+            "/dashboard/student/tests?error=" +
+            encodeURIComponent("Failed to load test");
           return;
         }
-        
+
         // Validate that we have questions BEFORE setting attempt
         if (!data.questions || data.questions.length === 0) {
           isLoadingRef.current = false;
@@ -160,10 +162,14 @@ const StudentExamPage = () => {
           hasRedirectedRef.current = true;
           // Clear the active exam cookie to prevent middleware redirect loop
           await clearActiveExamCookie();
-          window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("This test has no questions available. Please contact your lecturer.");
+          window.location.href =
+            "/dashboard/student/tests?error=" +
+            encodeURIComponent(
+              "This test has no questions available. Please contact your lecturer."
+            );
           return;
         }
-        
+
         // Only set attempt if we have questions
         setAttempt(data);
         setCheatCount(data.cheatCount ?? 0);
@@ -176,7 +182,7 @@ const StudentExamPage = () => {
             {}
           )
         );
-        
+
         // Check if time is already over
         if (data.endDate) {
           const end = new Date(data.endDate).getTime();
@@ -184,15 +190,16 @@ const StudentExamPage = () => {
             isTimeOverRef.current = true;
           }
         }
-        
+
         isLoadingRef.current = false;
         setLoading(false);
-        // Mark page as loaded after delay to prevent initial navigation/load from counting as cheating
-        // This delay prevents cheat detection from firing during page transitions
+        // Mark page as loaded after a short delay to prevent initial navigation/load
+        // from counting as cheating. Reduced to 2s for faster detection once the
+        // test is visible and stable.
         setTimeout(() => {
           isInitializingRef.current = false;
           pageLoadedRef.current = true;
-        }, 5000);
+        }, 2000);
       } catch (error) {
         if (hasRedirectedRef.current) {
           return; // Already redirected, don't do it again
@@ -209,11 +216,12 @@ const StudentExamPage = () => {
         // Clear the active exam cookie to prevent middleware redirect loop
         await clearActiveExamCookie();
         // Pass error message as URL parameter to show toast on dashboard
-        window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent(message);
+        window.location.href =
+          "/dashboard/student/tests?error=" + encodeURIComponent(message);
       }
     };
     load();
-    
+
     return () => {
       if (loadTimeoutRef.current) {
         clearTimeout(loadTimeoutRef.current);
@@ -238,7 +246,7 @@ const StudentExamPage = () => {
           questionId,
           answer: value as boolean,
         }));
-      
+
       // Only submit if we have at least some answers
       if (formattedAnswers.length > 0) {
         const result = await submitStudentAttempt({
@@ -264,7 +272,7 @@ const StudentExamPage = () => {
           toast.info("Test time expired. No answers were saved.");
         }
       }
-      
+
       // Clear cookie and redirect
       await clearActiveExamCookie();
       window.location.href = "/dashboard/student/tests";
@@ -429,7 +437,9 @@ const StudentExamPage = () => {
           // Clear the active exam cookie to prevent middleware redirect loop
           clearActiveExamCookie().then(() => {
             // Use window.location for immediate redirect
-            window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("Cheating limit reached. The test has ended.");
+            window.location.href =
+              "/dashboard/student/tests?error=" +
+              encodeURIComponent("Cheating limit reached. The test has ended.");
           });
         }
       } else {
@@ -443,13 +453,15 @@ const StudentExamPage = () => {
       console.error(error);
       toast.error("Failed to record anti-cheat event.");
     } finally {
-      setTimeout(() => setCheatLock(false), 2000);
+      // Short lock to avoid multiple rapid cheat events, but keep it small so
+      // repeated app switches are still detected quickly.
+      setTimeout(() => setCheatLock(false), 1000);
     }
   }, [attempt, cheatLock, cheatCount, router, loading]);
 
   useEffect(() => {
     if (!attempt || loading) return;
-    
+
     const handleVisibility = () => {
       // Only register cheat when page becomes hidden, not when it becomes visible
       if (document.visibilityState === "hidden") {
@@ -461,13 +473,31 @@ const StudentExamPage = () => {
       document.removeEventListener("visibilitychange", handleVisibility);
   }, [registerCheat, attempt, loading]);
 
+  // Also detect when the browser window loses focus (e.g. switching apps)
+  useEffect(() => {
+    if (!attempt || loading) return;
+
+    const handleBlur = () => {
+      registerCheat();
+    };
+
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [registerCheat, attempt, loading]);
+
   // If attempt exists but has no questions, redirect immediately (safety check)
   useEffect(() => {
     if (attempt && attempt.questions && attempt.questions.length === 0) {
       setLoading(false);
       // Clear the active exam cookie to prevent middleware redirect loop
       clearActiveExamCookie().then(() => {
-        window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("This test has no questions available. Please contact your lecturer.");
+        window.location.href =
+          "/dashboard/student/tests?error=" +
+          encodeURIComponent(
+            "This test has no questions available. Please contact your lecturer."
+          );
       });
     }
   }, [attempt]);
@@ -501,9 +531,9 @@ const StudentExamPage = () => {
         <div className="flex-1 space-y-4">
           <div>
             <Badge variant="secondary">
-                {attempt.subjectCode
-                  ? `${attempt.subjectCode}`
-                  : attempt.subjectName}
+              {attempt.subjectCode
+                ? `${attempt.subjectCode}`
+                : attempt.subjectName}
             </Badge>
             <h1 className="text-2xl font-semibold mt-2">{attempt.testTitle}</h1>
             <p className="text-sm text-muted-foreground">
@@ -520,9 +550,7 @@ const StudentExamPage = () => {
                   <p className="text-xs font-medium text-muted-foreground mb-1">
                     Time Remaining
                   </p>
-                  <p className="text-3xl font-bold text-primary">
-                    {timeLeft}
-                  </p>
+                  <p className="text-3xl font-bold text-primary">{timeLeft}</p>
                 </div>
               </CardContent>
             </Card>
@@ -531,7 +559,9 @@ const StudentExamPage = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">{currentQuestion.question}</CardTitle>
+              <CardTitle className="text-lg">
+                {currentQuestion.question}
+              </CardTitle>
               <CardDescription>
                 Select the correct answer to proceed.
               </CardDescription>
@@ -549,7 +579,9 @@ const StudentExamPage = () => {
                 </Button>
                 <Button
                   variant={
-                    answers[currentQuestion.id] === false ? "default" : "outline"
+                    answers[currentQuestion.id] === false
+                      ? "default"
+                      : "outline"
                   }
                   className="h-14 cursor-pointer"
                   onClick={() => handleAnswer(false)}
@@ -649,7 +681,9 @@ const StudentExamPage = () => {
           </DialogHeader>
           {cheatCount < 3 && (
             <DialogFooter>
-              <Button onClick={() => setCheatDialogOpen(false)}>Continue</Button>
+              <Button onClick={() => setCheatDialogOpen(false)}>
+                Continue
+              </Button>
             </DialogFooter>
           )}
         </DialogContent>
@@ -659,7 +693,8 @@ const StudentExamPage = () => {
           <DialogHeader>
             <DialogTitle>Finish Exam</DialogTitle>
             <DialogDescription>
-              Are you sure you want to finish the exam? Once submitted, you cannot change your answers.
+              Are you sure you want to finish the exam? Once submitted, you
+              cannot change your answers.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -670,10 +705,7 @@ const StudentExamPage = () => {
             >
               Cancel
             </Button>
-            <Button
-              onClick={confirmSubmit}
-              disabled={submitting}
-            >
+            <Button onClick={confirmSubmit} disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -691,4 +723,3 @@ const StudentExamPage = () => {
 };
 
 export default StudentExamPage;
-
