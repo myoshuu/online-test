@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { updateUserSchema, type UpdateUserInput } from "@/helpers/Zod";
 import { updateUser, getUserById } from "@/actions/Auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,21 +43,6 @@ import { Loader2, UserCog, Info } from "lucide-react";
 import Link from "next/link";
 import { useModal } from "@/components/ui/modal-provider";
 
-const updateUserSchema = z.object({
-  name: z.string().min(1, "Full name is required"),
-  nim: z.string().min(1, "Please enter a valid NIM"),
-  role: z.enum(["ADMIN", "LECTURER", "STUDENT"], {
-    message: "Please select a role",
-  }),
-  password: z
-    .string()
-    .optional()
-    .refine((val) => !val || val.length === 0 || val.length >= 8, {
-      message: "Password must be at least 8 characters",
-    }),
-});
-
-type UpdateUserInput = z.infer<typeof updateUserSchema>;
 type UserResponseData =
   | { message: string }
   | {

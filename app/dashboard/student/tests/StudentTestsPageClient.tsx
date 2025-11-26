@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -45,6 +45,7 @@ type StudentSubject = {
 
 interface StudentTestsPageClientProps {
   initialSubjects: StudentSubject[];
+  errorMessage?: string | null;
 }
 
 const formatDate = (value: string | null) => {
@@ -104,8 +105,10 @@ const formatCountdown = (ms: number) => {
 
 export function StudentTestsPageClient({
   initialSubjects,
+  errorMessage,
 }: StudentTestsPageClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState(
     initialSubjects[0]?.id || ""
@@ -118,10 +121,31 @@ export function StudentTestsPageClient({
     id: string;
     title: string;
   } | null>(null);
+  const [errorShown, setErrorShown] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Show error toast if error message is passed from URL or props
+  useEffect(() => {
+    if (errorShown) return; // Prevent showing error multiple times
+    
+    // Check both prop and URL search params
+    const errorFromUrl = searchParams.get("error");
+    const message = errorMessage || (errorFromUrl ? decodeURIComponent(errorFromUrl) : null);
+    
+    if (message && mounted) {
+      toast.error(message);
+      setErrorShown(true);
+      // Clean up URL by removing error parameter
+      if (errorFromUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("error");
+        router.replace(url.pathname + url.search, { scroll: false });
+      }
+    }
+  }, [errorMessage, searchParams, router, mounted, errorShown]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);

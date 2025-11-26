@@ -1,13 +1,19 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  nim: z.string().min(1, "Please enter a valid NIM"),
+  nim: z
+    .string()
+    .min(5, "NIM must be at least 5 characters")
+    .max(8, "NIM must be at most 8 characters"),
   password: z.string().min(1, "Password wajib diisi"),
 });
 
 export const registerSchema = z.object({
   name: z.string().min(1, "Full name is required"),
-  nim: z.string().min(1, "Please enter a valid NIM"),
+  nim: z
+    .string()
+    .min(5, "NIM must be at least 5 characters")
+    .max(8, "NIM must be at most 8 characters"),
   role: z.enum(["ADMIN", "LECTURER", "STUDENT"]).optional(),
   password: z.string().min(7, "Password must be at least 7 characters"),
 });
@@ -100,3 +106,51 @@ export const updateProfileAvatarSchema = z.object({
 export type UpdateProfileAvatarInput = z.infer<
   typeof updateProfileAvatarSchema
 >;
+
+export const createUserSchema = z.object({
+  name: z.string().min(1, "Full name is required"),
+  nim: z
+    .string()
+    .min(5, "NIM must be at least 5 characters")
+    .max(8, "NIM must be at most 8 characters"),
+  role: z.enum(["ADMIN", "LECTURER", "STUDENT"], {
+    message: "Please select a role",
+  }),
+});
+
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+export const updateUserSchema = z.object({
+  name: z.string().min(1, "Full name is required"),
+  nim: z
+    .string()
+    .min(5, "NIM must be at least 5 characters")
+    .max(8, "NIM must be at most 8 characters"),
+  role: z.enum(["ADMIN", "LECTURER", "STUDENT"], {
+    message: "Please select a role",
+  }),
+  password: z
+    .string()
+    .optional()
+    .refine((val) => !val || val.length === 0 || val.length >= 8, {
+      message: "Password must be at least 8 characters",
+    }),
+});
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+export const createSubjectSchema = z.object({
+  name: z.string().min(1, "Subject name is required"),
+  code: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export type CreateSubjectInput = z.infer<typeof createSubjectSchema>;
+
+export const updateSubjectSchema = z.object({
+  name: z.string().min(1, "Subject name is required"),
+  code: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;

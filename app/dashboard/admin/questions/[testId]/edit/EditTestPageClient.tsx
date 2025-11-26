@@ -766,58 +766,58 @@ export function EditTestPageClient({
                 </p>
               ) : (
                 filteredQuestions.map(({ data: question, displayOrder }) => (
-                  <div
-                    key={question.id}
-                    className="border border-border rounded-lg p-4 space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-semibold text-muted-foreground">
+                <div
+                  key={question.id}
+                  className="border border-border rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-semibold text-muted-foreground">
                             Question {displayOrder}:
-                          </span>
-                          {question.isCorrect !== null && (
-                            <div className="flex items-center gap-1">
-                              {question.isCorrect ? (
-                                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                              ) : (
-                                <XCircle className="w-4 h-4 text-red-600" />
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                Correct: {question.isCorrect ? "True" : "False"}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-sm">{question.question}</p>
+                        </span>
+                        {question.isCorrect !== null && (
+                          <div className="flex items-center gap-1">
+                            {question.isCorrect ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-600" />
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              Correct: {question.isCorrect ? "True" : "False"}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditQuestion(question)}
-                          disabled={loading || editingId === question.id}
-                          className="cursor-pointer"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setDeleteConfirm({
-                              open: true,
-                              questionId: question.id,
-                            })
-                          }
-                          disabled={loading}
-                          className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <p className="text-sm">{question.question}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditQuestion(question)}
+                        disabled={loading || editingId === question.id}
+                        className="cursor-pointer"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setDeleteConfirm({
+                            open: true,
+                            questionId: question.id,
+                          })
+                        }
+                        disabled={loading}
+                        className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
+                </div>
                 ))
               )}
             </div>

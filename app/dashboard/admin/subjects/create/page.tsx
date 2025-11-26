@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { createSubjectSchema, type CreateSubjectInput } from "@/helpers/Zod";
 import { createSubject } from "@/actions/Subject";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,13 +37,6 @@ import { Loader2, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useModal } from "@/components/ui/modal-provider";
 
-const createSubjectSchema = z.object({
-  name: z.string().min(1, "Subject name is required"),
-  code: z.string().optional(),
-  description: z.string().optional(),
-});
-
-type CreateSubjectInput = z.infer<typeof createSubjectSchema>;
 
 export default function CreateSubjectPage() {
   const router = useRouter();

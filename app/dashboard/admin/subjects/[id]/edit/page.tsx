@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { updateSubjectSchema, type UpdateSubjectInput } from "@/helpers/Zod";
 import { updateSubject, getSubjectById } from "@/actions/Subject";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,13 +37,6 @@ import { Loader2, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useModal } from "@/components/ui/modal-provider";
 
-const updateSubjectSchema = z.object({
-  name: z.string().min(1, "Subject name is required"),
-  code: z.string().optional(),
-  description: z.string().optional(),
-});
-
-type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;
 type SubjectResponseData =
   | {
       message: string;

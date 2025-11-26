@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { createUserSchema, type CreateUserInput } from "@/helpers/Zod";
 import { createUser } from "@/actions/Auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,15 +43,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { useModal } from "@/components/ui/modal-provider";
 
-const createUserSchema = z.object({
-  name: z.string().min(1, "Full name is required"),
-  nim: z.string().min(1, "Please enter a valid NIM"),
-  role: z.enum(["ADMIN", "LECTURER", "STUDENT"], {
-    message: "Please select a role",
-  }),
-});
-
-type CreateUserInput = z.infer<typeof createUserSchema>;
 
 const CreateUserPage = () => {
   const router = useRouter();

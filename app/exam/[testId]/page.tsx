@@ -6,6 +6,7 @@ import {
   getStudentTestAttempt,
   recordAttemptCheat,
   submitStudentAttempt,
+  clearActiveExamCookie,
 } from "@/actions/Test";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,20 +100,69 @@ const StudentExamPage = () => {
   const [cheatLock, setCheatLock] = useState(false);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
   const pageLoadedRef = useRef(false);
+  const isInitializingRef = useRef(true);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef(false);
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
+    if (hasRedirectedRef.current) {
+      return; // Prevent multiple redirects
+    }
     if (!testId) {
+      hasRedirectedRef.current = true;
       router.replace("/dashboard/student/tests");
       return;
     }
     const load = async () => {
+      if (hasRedirectedRef.current) {
+        return; // Prevent loading if already redirected
+      }
       setLoading(true);
+      isLoadingRef.current = true;
+      isInitializingRef.current = true;
+      pageLoadedRef.current = false;
+      
+      // Set a timeout to prevent infinite loading (30 seconds)
+      loadTimeoutRef.current = setTimeout(() => {
+        if (isLoadingRef.current) {
+          console.error("Test load timeout - redirecting to dashboard");
+          isLoadingRef.current = false;
+          setLoading(false);
+          toast.error("Failed to load test. Please try again.");
+          router.replace("/dashboard/student/tests");
+        }
+      }, 30000);
+      
       try {
         const data = await fetchTestAttempt(testId, accessCode);
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
+          loadTimeoutRef.current = null;
+        }
+        
         if (!data) {
-          router.replace("/dashboard/student/tests");
+          isLoadingRef.current = false;
+          setLoading(false);
+          hasRedirectedRef.current = true;
+          // Clear the active exam cookie to prevent middleware redirect loop
+          await clearActiveExamCookie();
+          window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("Failed to load test");
           return;
         }
+        
+        // Validate that we have questions BEFORE setting attempt
+        if (!data.questions || data.questions.length === 0) {
+          isLoadingRef.current = false;
+          setLoading(false);
+          hasRedirectedRef.current = true;
+          // Clear the active exam cookie to prevent middleware redirect loop
+          await clearActiveExamCookie();
+          window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("This test has no questions available. Please contact your lecturer.");
+          return;
+        }
+        
+        // Only set attempt if we have questions
         setAttempt(data);
         setCheatCount(data.cheatCount ?? 0);
         setAnswers(
@@ -124,21 +174,42 @@ const StudentExamPage = () => {
             {}
           )
         );
-        // Mark page as loaded after a short delay to prevent refresh from counting as cheating
+        isLoadingRef.current = false;
+        setLoading(false);
+        // Mark page as loaded after delay to prevent initial navigation/load from counting as cheating
+        // This delay prevents cheat detection from firing during page transitions
         setTimeout(() => {
+          isInitializingRef.current = false;
           pageLoadedRef.current = true;
-        }, 2000);
+        }, 5000);
       } catch (error) {
+        if (hasRedirectedRef.current) {
+          return; // Already redirected, don't do it again
+        }
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
+          loadTimeoutRef.current = null;
+        }
         const message =
           error instanceof Error ? error.message : "Failed to load test";
-        toast.error(message);
-        router.replace("/dashboard/student/tests");
-      } finally {
+        isLoadingRef.current = false;
         setLoading(false);
+        hasRedirectedRef.current = true;
+        // Clear the active exam cookie to prevent middleware redirect loop
+        await clearActiveExamCookie();
+        // Pass error message as URL parameter to show toast on dashboard
+        window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent(message);
       }
     };
     load();
-  }, [testId, router, accessCode]);
+    
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+      isLoadingRef.current = false;
+    };
+  }, [testId, router]); // Removed accessCode from dependencies to prevent re-running on URL changes
 
   useEffect(() => {
     if (!attempt?.startDate || !attempt.endDate) {
@@ -250,7 +321,14 @@ const StudentExamPage = () => {
   };
 
   const registerCheat = useCallback(async () => {
-    if (!attempt || cheatLock || cheatCount >= 3 || !pageLoadedRef.current) {
+    if (
+      !attempt ||
+      cheatLock ||
+      cheatCount >= 3 ||
+      !pageLoadedRef.current ||
+      isInitializingRef.current ||
+      loading
+    ) {
       return;
     }
     setCheatLock(true);
@@ -281,12 +359,15 @@ const StudentExamPage = () => {
       console.error(error);
       toast.error("Failed to record anti-cheat event.");
     } finally {
-      setTimeout(() => setCheatLock(false), 1000);
+      setTimeout(() => setCheatLock(false), 2000);
     }
-  }, [attempt, cheatLock, cheatCount, router]);
+  }, [attempt, cheatLock, cheatCount, router, loading]);
 
   useEffect(() => {
+    if (!attempt || loading) return;
+    
     const handleVisibility = () => {
+      // Only register cheat when page becomes hidden, not when it becomes visible
       if (document.visibilityState === "hidden") {
         registerCheat();
       }
@@ -294,19 +375,25 @@ const StudentExamPage = () => {
     document.addEventListener("visibilitychange", handleVisibility);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibility);
-  }, [registerCheat]);
+  }, [registerCheat, attempt, loading]);
 
+  // If attempt exists but has no questions, redirect immediately (safety check)
   useEffect(() => {
-    const handleBlur = () => {
-      registerCheat();
-    };
-    window.addEventListener("blur", handleBlur);
-    return () => {
-      window.removeEventListener("blur", handleBlur);
-    };
-  }, [registerCheat]);
+    if (attempt && attempt.questions && attempt.questions.length === 0) {
+      setLoading(false);
+      // Clear the active exam cookie to prevent middleware redirect loop
+      clearActiveExamCookie().then(() => {
+        window.location.href = "/dashboard/student/tests?error=" + encodeURIComponent("This test has no questions available. Please contact your lecturer.");
+      });
+    }
+  }, [attempt]);
 
-  if (!testId || loading || !attempt || !currentQuestion) {
+  // Early return if no questions detected
+  if (attempt && attempt.questions && attempt.questions.length === 0) {
+    return null; // Don't render anything while redirecting
+  }
+
+  if (!testId || loading || !attempt) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center text-muted-foreground space-y-2">
@@ -315,6 +402,10 @@ const StudentExamPage = () => {
         </div>
       </div>
     );
+  }
+
+  if (!currentQuestion) {
+    return null; // Don't render anything while redirecting
   }
 
   const totalQuestions = attempt.questions.length;

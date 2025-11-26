@@ -1,28 +1,26 @@
-const utcDateFormatter = new Intl.DateTimeFormat("en-US", {
+const localDateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "short",
   day: "numeric",
-  timeZone: "UTC",
 });
 
-const utcDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+const localDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "short",
   day: "numeric",
   hour: "2-digit",
   minute: "2-digit",
   hour12: true,
-  timeZone: "UTC",
 });
 
 export const formatDate = (date: Date | string): string => {
   const d = typeof date === "string" ? new Date(date) : date;
-  return Number.isNaN(d.getTime()) ? "N/A" : utcDateFormatter.format(d);
+  return Number.isNaN(d.getTime()) ? "N/A" : localDateFormatter.format(d);
 };
 
 export const formatDateTime = (date: Date | string): string => {
   const d = typeof date === "string" ? new Date(date) : date;
-  return Number.isNaN(d.getTime()) ? "N/A" : utcDateTimeFormatter.format(d);
+  return Number.isNaN(d.getTime()) ? "N/A" : localDateTimeFormatter.format(d);
 };
 
 export const normalizeTestEndDate = (

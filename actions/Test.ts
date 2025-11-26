@@ -81,7 +81,7 @@ const setActiveExamCookie = async ({
   cookieStore.set(ACTIVE_EXAM_COOKIE, cookiePayload, options);
 };
 
-const clearActiveExamCookie = async () => {
+export const clearActiveExamCookie = async () => {
   const cookieStore = await cookies();
   cookieStore.delete(ACTIVE_EXAM_COOKIE);
 };

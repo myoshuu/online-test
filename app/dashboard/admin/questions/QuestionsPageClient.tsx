@@ -960,7 +960,7 @@ export function QuestionsPageClient({
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-l border-border">
                                   Actions
-                                </th>
+                                  </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border bg-card">
@@ -1060,7 +1060,7 @@ export function QuestionsPageClient({
                                       >
                                         View More
                                       </Button>
-                                    </td>
+                                      </td>
                                   </tr>
                                 ))
                               )}
@@ -1069,10 +1069,10 @@ export function QuestionsPageClient({
                         </div>
                       </div>
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground text-center">
+                      <p className="mt-2 text-xs text-muted-foreground text-center">
                       Select “View More” to inspect a student&apos;s per-question
                       answers in detail.
-                    </p>
+                      </p>
                   </div>
                 </TabsContent>
               </Tabs>
