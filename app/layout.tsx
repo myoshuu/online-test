@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModalProvider } from "@/components/ui/modal-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { PolyfillsLoader } from "@/components/polyfills-loader";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} antialiased`}>
+        <PolyfillsLoader />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
