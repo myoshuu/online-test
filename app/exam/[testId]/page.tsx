@@ -55,15 +55,29 @@ type StudentTestAttempt = {
 
 // Helper function for padding (compatible with older browsers)
 const padStart = (str: string, length: number, padString: string): string => {
-  if (String.prototype.padStart) {
-    return str.padStart(length, padString);
+  // Check if padStart is actually available and callable at runtime
+  // TypeScript knows padStart exists in types, but we need to check runtime availability
+  try {
+    if (typeof (String.prototype as any).padStart === "function") {
+      const result = (str as any).padStart(length, padString);
+      if (typeof result === "string") {
+        return result;
+      }
+    }
+  } catch (error) {
+    // If padStart fails, fall through to fallback
   }
   // Fallback for older browsers
   const strValue = String(str);
   if (strValue.length >= length) {
     return strValue;
   }
-  const padding = padString.repeat(length - strValue.length);
+  // Use a simple repeat implementation (avoiding String.prototype.repeat which might not exist)
+  let padding = "";
+  const padLength = length - strValue.length;
+  for (let i = 0; i < padLength; i++) {
+    padding += padString;
+  }
   return padding + strValue;
 };
 
