@@ -53,17 +53,65 @@ type StudentTestAttempt = {
   cheatCount: number;
 };
 
+// Helper function for padding (compatible with older browsers)
+const padStart = (str: string, length: number, padString: string): string => {
+  if (String.prototype.padStart) {
+    return str.padStart(length, padString);
+  }
+  // Fallback for older browsers
+  const strValue = String(str);
+  if (strValue.length >= length) {
+    return strValue;
+  }
+  const padding = padString.repeat(length - strValue.length);
+  return padding + strValue;
+};
+
+// Helper function for safe URL encoding (compatible with older browsers)
+const safeEncodeURIComponent = (str: string): string => {
+  try {
+    if (typeof encodeURIComponent === "function") {
+      return encodeURIComponent(str);
+    }
+    // Fallback: basic encoding
+    return str
+      .replace(/%/g, "%25")
+      .replace(/ /g, "%20")
+      .replace(/&/g, "%26")
+      .replace(/=/g, "%3D")
+      .replace(/\?/g, "%3F");
+  } catch (error) {
+    console.error("Error encoding URI component:", error);
+    return str;
+  }
+};
+
+// Helper function for safe redirects
+const safeRedirect = (url: string) => {
+  try {
+    if (typeof window !== "undefined" && window.location) {
+      window.location.href = url;
+    } else {
+      console.error("Cannot redirect: window.location not available");
+    }
+  } catch (error) {
+    console.error("Error redirecting:", error);
+  }
+};
+
 const formatCountdown = (ms: number) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600)
-    .toString()
-    .padStart(2, "0");
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = Math.floor(totalSeconds % 60)
-    .toString()
-    .padStart(2, "0");
+  const hours = padStart(Math.floor(totalSeconds / 3600).toString(), 2, "0");
+  const minutes = padStart(
+    Math.floor((totalSeconds % 3600) / 60).toString(),
+    2,
+    "0"
+  );
+  const seconds = padStart(
+    Math.floor(totalSeconds % 60).toString(),
+    2,
+    "0"
+  );
   return `${hours}h ${minutes}m ${seconds}s`;
 };
 
@@ -71,7 +119,9 @@ const fetchTestAttempt = async (
   testId: string,
   code: string | null
 ): Promise<StudentTestAttempt | null> => {
-  const result = await getStudentTestAttempt(testId, code ?? undefined);
+  // Replace nullish coalescing with explicit check
+  const codeValue = code !== null && code !== undefined ? code : undefined;
+  const result = await getStudentTestAttempt(testId, codeValue);
   if (result.success && result.data && "attempt" in result.data) {
     return result.data.attempt as StudentTestAttempt;
   }
@@ -85,8 +135,9 @@ const StudentExamPage = () => {
   const router = useRouter();
   const params = useParams<{ testId?: string }>();
   const searchParams = useSearchParams();
-  const testId = params?.testId;
-  const accessCode = searchParams.get("code");
+  // Replace optional chaining with explicit check
+  const testId = params && params.testId ? params.testId : undefined;
+  const accessCode = searchParams ? searchParams.get("code") : null;
 
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState<StudentTestAttempt | null>(null);
@@ -126,15 +177,24 @@ const StudentExamPage = () => {
       pageLoadedRef.current = false;
 
       // Set a timeout to prevent infinite loading (30 seconds)
-      loadTimeoutRef.current = setTimeout(() => {
-        if (isLoadingRef.current) {
-          console.error("Test load timeout - redirecting to dashboard");
-          isLoadingRef.current = false;
-          setLoading(false);
-          toast.error("Failed to load test. Please try again.");
-          router.replace("/dashboard/student/tests");
-        }
-      }, 30000);
+      if (typeof setTimeout === "function") {
+        loadTimeoutRef.current = setTimeout(() => {
+          if (isLoadingRef.current) {
+            console.error("Test load timeout - redirecting to dashboard");
+            isLoadingRef.current = false;
+            setLoading(false);
+            toast.error("Failed to load test. Please try again.");
+            try {
+              router.replace("/dashboard/student/tests");
+            } catch (error) {
+              console.error("Error redirecting:", error);
+              if (typeof window !== "undefined" && window.location) {
+                window.location.href = "/dashboard/student/tests";
+              }
+            }
+          }
+        }, 30000);
+      }
 
       try {
         const data = await fetchTestAttempt(testId, accessCode);
@@ -149,9 +209,10 @@ const StudentExamPage = () => {
           hasRedirectedRef.current = true;
           // Clear the active exam cookie to prevent middleware redirect loop
           await clearActiveExamCookie();
-          window.location.href =
+          safeRedirect(
             "/dashboard/student/tests?error=" +
-            encodeURIComponent("Failed to load test");
+              safeEncodeURIComponent("Failed to load test")
+          );
           return;
         }
 
@@ -162,21 +223,31 @@ const StudentExamPage = () => {
           hasRedirectedRef.current = true;
           // Clear the active exam cookie to prevent middleware redirect loop
           await clearActiveExamCookie();
-          window.location.href =
+          safeRedirect(
             "/dashboard/student/tests?error=" +
-            encodeURIComponent(
-              "This test has no questions available. Please contact your lecturer."
-            );
+              safeEncodeURIComponent(
+                "This test has no questions available. Please contact your lecturer."
+              )
+          );
           return;
         }
 
         // Only set attempt if we have questions
         setAttempt(data);
-        setCheatCount(data.cheatCount ?? 0);
+        // Replace nullish coalescing with explicit check
+        setCheatCount(
+          data.cheatCount !== null && data.cheatCount !== undefined
+            ? data.cheatCount
+            : 0
+        );
         setAnswers(
           data.questions.reduce<Record<string, boolean | null>>(
             (acc, question) => {
-              acc[question.id] = question.answer ?? null;
+              // Replace nullish coalescing with explicit check
+              acc[question.id] =
+                question.answer !== null && question.answer !== undefined
+                  ? question.answer
+                  : null;
               return acc;
             },
             {}
@@ -185,9 +256,19 @@ const StudentExamPage = () => {
 
         // Check if time is already over
         if (data.endDate) {
-          const end = new Date(data.endDate).getTime();
-          if (!Number.isNaN(end) && Date.now() > end) {
-            isTimeOverRef.current = true;
+          try {
+            // Check if Date constructor and Date.now exist
+            if (
+              typeof Date !== "undefined" &&
+              typeof Date.now === "function"
+            ) {
+              const end = new Date(data.endDate).getTime();
+              if (!Number.isNaN(end) && Date.now() > end) {
+                isTimeOverRef.current = true;
+              }
+            }
+          } catch (error) {
+            console.error("Error checking end date:", error);
           }
         }
 
@@ -196,10 +277,16 @@ const StudentExamPage = () => {
         // Mark page as loaded after a short delay to prevent initial navigation/load
         // from counting as cheating. Reduced to 2s for faster detection once the
         // test is visible and stable.
-        setTimeout(() => {
+        if (typeof setTimeout === "function") {
+          setTimeout(() => {
+            isInitializingRef.current = false;
+            pageLoadedRef.current = true;
+          }, 2000);
+        } else {
+          // Fallback if setTimeout is not available (very unlikely)
           isInitializingRef.current = false;
           pageLoadedRef.current = true;
-        }, 2000);
+        }
       } catch (error) {
         if (hasRedirectedRef.current) {
           return; // Already redirected, don't do it again
@@ -216,8 +303,9 @@ const StudentExamPage = () => {
         // Clear the active exam cookie to prevent middleware redirect loop
         await clearActiveExamCookie();
         // Pass error message as URL parameter to show toast on dashboard
-        window.location.href =
-          "/dashboard/student/tests?error=" + encodeURIComponent(message);
+        safeRedirect(
+          "/dashboard/student/tests?error=" + safeEncodeURIComponent(message)
+        );
       }
     };
     load();
@@ -275,20 +363,24 @@ const StudentExamPage = () => {
 
       // Clear cookie and redirect
       await clearActiveExamCookie();
-      window.location.href = "/dashboard/student/tests";
+      safeRedirect("/dashboard/student/tests");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to submit test";
       toast.error(message);
       await clearActiveExamCookie();
-      window.location.href = "/dashboard/student/tests";
+      safeRedirect("/dashboard/student/tests");
     } finally {
       setSubmitting(false);
     }
   }, [attempt, submitting, answers]);
 
   useEffect(() => {
-    if (!attempt?.startDate || !attempt.endDate) {
+    if (
+      !attempt ||
+      !attempt.startDate ||
+      !attempt.endDate
+    ) {
       setTimeLeft(null);
       return;
     }
@@ -299,41 +391,67 @@ const StudentExamPage = () => {
       return;
     }
     const update = () => {
-      const now = Date.now();
-      if (now < start) {
-        setTimeLeft(formatCountdown(start - now));
-      } else if (now > end) {
-        setTimeLeft("Test window ended");
-        isTimeOverRef.current = true;
-        // Auto-submit when time is over
-        if (!hasAutoSubmittedRef.current) {
-          autoSubmit();
+      try {
+        // Check if Date.now exists (should be available, but defensive check)
+        if (typeof Date === "undefined" || typeof Date.now !== "function") {
+          setTimeLeft(null);
+          return;
         }
-      } else {
-        setTimeLeft(formatCountdown(end - now));
-        // Check if time is very close to ending (less than 1 second)
-        if (end - now <= 1000 && !hasAutoSubmittedRef.current) {
+        const now = Date.now();
+        if (now < start) {
+          setTimeLeft(formatCountdown(start - now));
+        } else if (now > end) {
+          setTimeLeft("Test window ended");
           isTimeOverRef.current = true;
-          autoSubmit();
+          // Auto-submit when time is over
+          if (!hasAutoSubmittedRef.current) {
+            autoSubmit();
+          }
+        } else {
+          setTimeLeft(formatCountdown(end - now));
+          // Check if time is very close to ending (less than 1 second)
+          if (end - now <= 1000 && !hasAutoSubmittedRef.current) {
+            isTimeOverRef.current = true;
+            autoSubmit();
+          }
         }
+      } catch (error) {
+        console.error("Error updating timer:", error);
+        setTimeLeft(null);
       }
     };
     update();
-    const timer = setInterval(update, 1000);
-    return () => clearInterval(timer);
+    // Check if setInterval exists before using it
+    if (typeof setInterval === "function") {
+      const timer = setInterval(update, 1000);
+      return () => {
+        if (typeof clearInterval === "function") {
+          clearInterval(timer);
+        }
+      };
+    }
   }, [attempt, autoSubmit]);
 
   const currentQuestion = useMemo(() => {
-    if (!attempt) return null;
-    return attempt.questions[questionIndex] ?? null;
+    if (!attempt || !attempt.questions) return null;
+    const question = attempt.questions[questionIndex];
+    return question !== null && question !== undefined ? question : null;
   }, [attempt, questionIndex]);
 
   const handleAnswer = (value: boolean) => {
-    if (!currentQuestion) return;
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion.id]: value,
-    }));
+    try {
+      if (!currentQuestion || !currentQuestion.id) return;
+      setAnswers((prev) => {
+        if (!prev) return { [currentQuestion.id]: value };
+        return {
+          ...prev,
+          [currentQuestion.id]: value,
+        };
+      });
+    } catch (error) {
+      console.error("Error handling answer:", error);
+      toast.error("Failed to save answer. Please try again.");
+    }
   };
 
   const handlePrevious = () => {
@@ -349,25 +467,42 @@ const StudentExamPage = () => {
       toast.error("Please answer the question before continuing.");
       return;
     }
-    setQuestionIndex((prev) =>
-      Math.min(prev + 1, (attempt?.questions.length || 1) - 1)
-    );
+    setQuestionIndex((prev) => {
+      const questionsLength =
+        attempt && attempt.questions ? attempt.questions.length : 1;
+      return Math.min(prev + 1, questionsLength - 1);
+    });
   };
 
   const handleSubmit = () => {
-    if (!attempt || submitting) {
-      return;
+    try {
+      if (!attempt || submitting) {
+        return;
+      }
+      if (!attempt.questions || !Array.isArray(attempt.questions)) {
+        toast.error("Invalid test data. Please refresh the page.");
+        return;
+      }
+      const unanswered = attempt.questions.find(
+        (question) =>
+          !question ||
+          !question.id ||
+          answers[question.id] === null ||
+          answers[question.id] === undefined
+      );
+      if (unanswered) {
+        toast.error("Please answer all questions before submitting.");
+        const index = attempt.questions.indexOf(unanswered);
+        if (index >= 0) {
+          setQuestionIndex(index);
+        }
+        return;
+      }
+      setSubmitConfirmOpen(true);
+    } catch (error) {
+      console.error("Error in handleSubmit:", error);
+      toast.error("An error occurred. Please try again.");
     }
-    const unanswered = attempt.questions.find(
-      (question) =>
-        answers[question.id] === null || answers[question.id] === undefined
-    );
-    if (unanswered) {
-      toast.error("Please answer all questions before submitting.");
-      setQuestionIndex(attempt.questions.indexOf(unanswered));
-      return;
-    }
-    setSubmitConfirmOpen(true);
   };
 
   const confirmSubmit = async () => {
@@ -391,7 +526,7 @@ const StudentExamPage = () => {
         hasAutoSubmittedRef.current = true;
         toast.success("Test submitted!");
         await clearActiveExamCookie();
-        window.location.href = "/dashboard/student/tests";
+        safeRedirect("/dashboard/student/tests");
       } else {
         const message =
           result.data && "message" in result.data
@@ -424,7 +559,12 @@ const StudentExamPage = () => {
     try {
       const result = await recordAttemptCheat(attempt.attemptId);
       if (result.success && result.data && "cheatCount" in result.data) {
-        const updatedCount = (result.data.cheatCount as number) ?? 0;
+        // Replace nullish coalescing with explicit check
+        const cheatCountValue = result.data.cheatCount as number;
+        const updatedCount =
+          cheatCountValue !== null && cheatCountValue !== undefined
+            ? cheatCountValue
+            : 0;
         setCheatCount(updatedCount);
         const remaining = Math.max(0, 3 - updatedCount);
         setCheatDialogMessage(
@@ -436,10 +576,13 @@ const StudentExamPage = () => {
         if (result.data.blocked) {
           // Clear the active exam cookie to prevent middleware redirect loop
           clearActiveExamCookie().then(() => {
-            // Use window.location for immediate redirect
-            window.location.href =
+            // Use safe redirect for immediate navigation
+            safeRedirect(
               "/dashboard/student/tests?error=" +
-              encodeURIComponent("Cheating limit reached. The test has ended.");
+                safeEncodeURIComponent(
+                  "Cheating limit reached. The test has ended."
+                )
+            );
           });
         }
       } else {
@@ -455,7 +598,11 @@ const StudentExamPage = () => {
     } finally {
       // Short lock to avoid multiple rapid cheat events, but keep it small so
       // repeated app switches are still detected quickly.
-      setTimeout(() => setCheatLock(false), 1000);
+      if (typeof setTimeout === "function") {
+        setTimeout(() => setCheatLock(false), 1000);
+      } else {
+        setCheatLock(false);
+      }
     }
   }, [attempt, cheatLock, cheatCount, router, loading]);
 
@@ -463,14 +610,30 @@ const StudentExamPage = () => {
     if (!attempt || loading) return;
 
     const handleVisibility = () => {
-      // Only register cheat when page becomes hidden, not when it becomes visible
-      if (document.visibilityState === "hidden") {
-        registerCheat();
+      try {
+        // Only register cheat when page becomes hidden, not when it becomes visible
+        // Check if document.visibilityState exists (older browsers might not support it)
+        if (
+          typeof document !== "undefined" &&
+          document.visibilityState &&
+          document.visibilityState === "hidden"
+        ) {
+          registerCheat();
+        }
+      } catch (error) {
+        console.error("Error in visibility change handler:", error);
       }
     };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibility);
+
+    // Check if addEventListener exists before using it
+    if (typeof document !== "undefined" && document.addEventListener) {
+      document.addEventListener("visibilitychange", handleVisibility);
+      return () => {
+        if (document.removeEventListener) {
+          document.removeEventListener("visibilitychange", handleVisibility);
+        }
+      };
+    }
   }, [registerCheat, attempt, loading]);
 
   // Also detect when the browser window loses focus (e.g. switching apps)
@@ -478,13 +641,22 @@ const StudentExamPage = () => {
     if (!attempt || loading) return;
 
     const handleBlur = () => {
-      registerCheat();
+      try {
+        registerCheat();
+      } catch (error) {
+        console.error("Error in blur handler:", error);
+      }
     };
 
-    window.addEventListener("blur", handleBlur);
-    return () => {
-      window.removeEventListener("blur", handleBlur);
-    };
+    // Check if window and addEventListener exist before using them
+    if (typeof window !== "undefined" && window.addEventListener) {
+      window.addEventListener("blur", handleBlur);
+      return () => {
+        if (window.removeEventListener) {
+          window.removeEventListener("blur", handleBlur);
+        }
+      };
+    }
   }, [registerCheat, attempt, loading]);
 
   // If attempt exists but has no questions, redirect immediately (safety check)
@@ -493,11 +665,12 @@ const StudentExamPage = () => {
       setLoading(false);
       // Clear the active exam cookie to prevent middleware redirect loop
       clearActiveExamCookie().then(() => {
-        window.location.href =
+        safeRedirect(
           "/dashboard/student/tests?error=" +
-          encodeURIComponent(
-            "This test has no questions available. Please contact your lecturer."
-          );
+            safeEncodeURIComponent(
+              "This test has no questions available. Please contact your lecturer."
+            )
+        );
       });
     }
   }, [attempt]);
@@ -531,9 +704,9 @@ const StudentExamPage = () => {
         <div className="flex-1 space-y-4">
           <div>
             <Badge variant="secondary">
-              {attempt.subjectCode
-                ? `${attempt.subjectCode}`
-                : attempt.subjectName}
+                {attempt.subjectCode
+                  ? attempt.subjectCode
+                  : attempt.subjectName || ""}
             </Badge>
             <h1 className="text-2xl font-semibold mt-2">{attempt.testTitle}</h1>
             <p className="text-sm text-muted-foreground">

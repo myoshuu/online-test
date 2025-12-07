@@ -65,6 +65,19 @@ export function PolyfillsLoader() {
         info: () => {},
       };
     }
+
+    // Object.entries polyfill (for very old browsers)
+    if (!Object.entries) {
+      Object.entries = function (obj: any): [string, any][] {
+        const ownProps = Object.keys(obj);
+        let i = ownProps.length;
+        const resArray = new Array(i);
+        while (i--) {
+          resArray[i] = [ownProps[i], obj[ownProps[i]]];
+        }
+        return resArray;
+      };
+    }
   }, []);
 
   return null;
